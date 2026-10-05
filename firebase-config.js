@@ -30,8 +30,10 @@ function mulaiAuth(perlu, onReady) {
   ov.querySelector('#ekLogin').onsubmit = ev => {
     ev.preventDefault(); err('');
     const u = document.getElementById('ekUser').value.trim().toLowerCase().replace(/\s+/g, '');
-    auth.signInWithEmailAndPassword(u + DOMAIN_USER, document.getElementById('ekPass').value)
-      .catch(() => err('Username atau password salah.'));
+    const email = u.includes('@') ? u : u + DOMAIN_USER;
+    auth.signInWithEmailAndPassword(email, document.getElementById('ekPass').value)
+      .catch(e => err(['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email'].includes(e.code)
+        ? 'Username/email atau password salah.' : 'Gagal masuk (' + e.code + ').'));
   };
 
   auth.onAuthStateChanged(async u => {
