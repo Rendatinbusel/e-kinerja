@@ -228,168 +228,122 @@ function detail(r, i) {
 }
 function toggle(i) { const n = tampil[i].nama; terbuka = terbuka === n ? null : n; render(); }
 
-const WARNA = { indigo: 'FF312E81', muda: 'FFE0E7FF', abu: 'FFF1F5F9' };
-const GARIS = { style: 'thin', color: { argb: 'FFBFC7D5' } };
+const ABU = 'FFF2F2F2', MINT = 'FFB7E1CD';
+const GARIS = { style: 'thin', color: { argb: 'FFBFBFBF' } };
 const BORDER = { top: GARIS, left: GARIS, bottom: GARIS, right: GARIS };
-const STATUS_XL = { Baik: ['FFC6EFCE', 'FF006100'], Cukup: ['FFFFEB9C', 'FF9C5700'], Kurang: ['FFFFC7CE', 'FF9C0006'], '-': ['FFF1F5F9', 'FF64748B'] };
-const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const STATUS_XL = { Baik: ['FFC6EFCE', 'FF006100'], Cukup: ['FFFFEB9C', 'FF9C5700'], Kurang: ['FFFFC7CE', 'FF9C0006'], '-': ['FFF2F2F2', 'FF64748B'] };
 const tglDate = t => { const [y, m, d] = t.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
-const jamFrac = j => { const [h, m] = (j || '0:0').split(':').map(Number); return (h * 60 + m) / 1440; };
-const tinggi = pairs => Math.max(18, Math.max(...pairs.map(([t, w]) => Math.ceil(String(t ?? '').length / (w * 1.05)))) * 13 + 5);
-
-let logoCache;
-function logoData() {
-  if (logoCache !== undefined) return logoCache;
-  logoCache = null;
-  try {
-    const im = $('logo');
-    if (im.complete && im.naturalWidth) {
-      const h = Math.min(200, im.naturalHeight), w = Math.round(im.naturalWidth * h / im.naturalHeight);
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      c.getContext('2d').drawImage(im, 0, 0, w, h);
-      logoCache = { url: c.toDataURL('image/png'), w, h };
-    }
-  } catch (e) {}
-  return logoCache;
-}
+const pad2 = n => String(n).padStart(2, '0');
+const fmtJ = m => `${pad2(Math.floor(m / 60))} jam ${pad2(m % 60)} menit`;
+const tinggi = pairs => Math.max(20, Math.max(...pairs.map(([t, w]) => Math.ceil(String(t ?? '').length / (w * 1.05)))) * 13 + 6);
 
 function gaya(c, o = {}) {
-  c.font = { name: 'Calibri', size: o.size || 10, bold: !!o.bold, italic: !!o.italic, underline: !!o.underline, color: { argb: o.warna || 'FF0F172A' } };
-  c.alignment = { horizontal: o.h || 'left', vertical: o.v || 'top', wrapText: o.wrap !== false, indent: o.indent || 0 };
+  c.font = { name: 'Arial', size: o.size || 10, bold: !!o.bold, italic: !!o.italic, underline: !!o.underline, color: { argb: o.warna || 'FF000000' } };
+  c.alignment = { horizontal: o.h || 'left', vertical: o.v || 'middle', wrapText: o.wrap !== false };
   if (o.fill) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: o.fill } };
   if (o.fmt) c.numFmt = o.fmt;
   if (o.border !== false) c.border = BORDER;
 }
-function kepala(ws, r, labels) {
-  labels.forEach((t, i) => { const c = ws.getCell(r, 1 + i); c.value = t; gaya(c, { bold: true, warna: 'FFFFFFFF', fill: WARNA.indigo, h: 'center', v: 'middle' }); });
-  ws.getRow(r).height = 28;
-}
-function kop(wb, ws, judul, sub, akhir) {
-  for (let c = 1; c <= akhir; c++) ws.getCell(3, c).border = { bottom: { style: 'medium', color: { argb: WARNA.indigo } } };
-  [[judul, { size: 15, bold: true, warna: 'FF1E1B4B' }, 26], ['KPU Kabupaten Buton Selatan', { warna: 'FF475569' }, 18], [sub, { warna: 'FF475569' }, 18]].forEach(([t, o, h], k) => {
-    const r = k + 1, c = ws.getCell(r, 2); c.value = t;
-    gaya(c, { ...o, border: false, v: 'middle', indent: 1, wrap: false });
-    ws.mergeCells(r, 2, r, akhir); ws.getRow(r).height = h;
+function judulLembar(ws, judul, akhir, band) {
+  [[1, judul], [2, 'ASN DI LINGKUP KPU KABUPATEN BUTON SELATAN']].forEach(([r, t]) => {
+    const c = ws.getCell(r, 1); c.value = t;
+    gaya(c, { bold: true, h: 'center', size: 11, border: false, wrap: false });
+    ws.mergeCells(r, 1, r, akhir); ws.getRow(r).height = 24;
   });
-  const L = logoData();
-  if (L) {
-    const id = wb.addImage({ base64: L.url.split(',')[1], extension: 'png' }), h = 62;
-    ws.addImage(id, { tl: { col: 0.1, row: 0.12 }, ext: { width: Math.round(h * L.w / L.h), height: h } });
-  }
-  return 5;
+  const b = ws.getCell(3, 1); b.value = band;
+  gaya(b, { bold: true, h: 'center', size: 12, border: false, wrap: false, fill: ABU });
+  ws.mergeCells(3, 1, 3, akhir); ws.getRow(3).height = 26;
+  return 4;
 }
 function aturCetak(ws, judulBaris) {
   ws.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: .4, right: .4, top: .5, bottom: .5, header: .3, footer: .3 } };
   if (judulBaris) ws.pageSetup.printTitlesRow = judulBaris;
   ws.headerFooter = { oddFooter: '&L&8e-Kinerja KPU Kabupaten Buton Selatan&R&8Halaman &P dari &N' };
 }
-const lampirBukti = (c, u) => { c.value = { text: 'Buka', hyperlink: u }; gaya(c, { h: 'center', warna: 'FF2563EB', underline: true }); };
 
 function sheetRingkasan(wb, rows) {
-  const ws = wb.addWorksheet('Ringkasan', { views: [{ showGridLines: false }] });
+  const ws = wb.addWorksheet('Ringkasan', { views: [{ state: 'frozen', ySplit: 4 }] });
   ws.columns = [{ width: 7 }, { width: 36 }, { width: 12 }, { width: 14 }, { width: 15 }, { width: 12 }, { width: 12 }, { width: 14 }, { width: 12 }];
-  let r = kop(wb, ws, 'Laporan Kinerja Pegawai', `Periode ${periode()}`, 9);
-  const cap = rows.filter(x => x.capaian !== null).map(x => x.capaian);
-  const jml = rows.reduce((s, x) => s + x.jml, 0), tot = rows.reduce((s, x) => s + x.total, 0);
-  const rata = cap.length ? cap.reduce((a, b) => a + b, 0) / cap.length : null;
-  [['Jumlah pegawai', rows.length], ['Total kegiatan', jml], ['Total jam kerja', tot / 1440, '[h]:mm'], ['Rata-rata capaian', rata === null ? '-' : Math.round(rata) / 100, '0%']].forEach(([l, v, f]) => {
-    const a = ws.getCell(r, 2); a.value = l; gaya(a, { bold: true, fill: WARNA.muda, v: 'middle' });
-    const b = ws.getCell(r, 3); b.value = v; gaya(b, { h: 'center', v: 'middle', bold: true, fmt: f });
-    ws.getRow(r).height = 18; r++;
+  let r = judulLembar(ws, 'REKAPITULASI EKINERJA HARIAN', 9, `Periode ${periode()}`);
+  ['No', 'Pegawai', 'Kegiatan', 'Total Jam', 'Hari Terpenuhi', 'Hari Kerja', 'Capaian', 'Bukti Dukung', 'Status'].forEach((t, i) => {
+    const c = ws.getCell(r, i + 1); c.value = t; gaya(c, { bold: true, h: 'center', fill: ABU });
   });
-  r++;
-  const h0 = r;
-  kepala(ws, r, ['No', 'Pegawai', 'Kegiatan', 'Total Jam', 'Hari Terpenuhi', 'Hari Kerja', 'Capaian', 'Bukti Dukung', 'Status']); r++;
+  ws.getRow(r).height = 26; const h0 = r; r++;
   const a0 = r;
   rows.forEach((p, i) => {
     const st = status(p.capaian).txt, [fb, fc] = STATUS_XL[st];
     const v = [i + 1, p.nama, p.jml, p.total / 1440, p.terpenuhi, p.hk, p.capaian === null ? '-' : p.capaian / 100, buktiPersen(p) / 100, st];
     const f = [null, null, null, '[h]:mm', null, null, '0%', '0%', null];
-    v.forEach((x, k) => { const c = ws.getCell(r, k + 1); c.value = x; gaya(c, { h: k === 1 ? 'left' : 'center', v: 'middle', fmt: f[k] }); });
-    gaya(ws.getCell(r, 9), { h: 'center', v: 'middle', bold: true, fill: fb, warna: fc });
-    ws.getRow(r).height = Math.max(18, tinggi([[p.nama, 36]])); r++;
+    v.forEach((x, k) => { const c = ws.getCell(r, k + 1); c.value = x; gaya(c, { h: k === 1 ? 'left' : 'center', fmt: f[k] }); });
+    gaya(ws.getCell(r, 9), { h: 'center', bold: true, fill: fb, warna: fc });
+    ws.getRow(r).height = tinggi([[p.nama, 36]]); r++;
   });
   const e = r - 1;
-  const tr = [[2, 'TOTAL / RATA-RATA'], [3, { formula: `SUM(C${a0}:C${e})`, result: jml }], [4, { formula: `SUM(D${a0}:D${e})`, result: tot / 1440 }],
-    [5, { formula: `SUM(E${a0}:E${e})`, result: rows.reduce((s, x) => s + x.terpenuhi, 0) }], [7, { formula: `IFERROR(AVERAGE(G${a0}:G${e}),"-")`, result: rata === null ? '-' : rata / 100 }]];
-  for (let c = 1; c <= 9; c++) gaya(ws.getCell(r, c), { bold: true, fill: WARNA.abu, h: c === 2 ? 'left' : 'center', v: 'middle', fmt: c === 4 ? '[h]:mm' : c === 7 ? '0%' : null });
-  tr.forEach(([c, v]) => ws.getCell(r, c).value = v);
-  ws.getRow(r).height = 20; r += 2;
-  const k = ws.getCell(r, 2);
+  const cap = rows.filter(x => x.capaian !== null).map(x => x.capaian);
+  const rata = cap.length ? cap.reduce((a, b) => a + b, 0) / cap.length : null;
+  const jml = rows.reduce((s, x) => s + x.jml, 0), tot = rows.reduce((s, x) => s + x.total, 0), ter = rows.reduce((s, x) => s + x.terpenuhi, 0);
+  for (let c = 1; c <= 9; c++) gaya(ws.getCell(r, c), { bold: true, fill: ABU, h: c === 2 ? 'left' : 'center', fmt: c === 4 ? '[h]:mm' : c === 7 ? '0%' : null });
+  ws.getCell(r, 2).value = 'TOTAL / RATA-RATA';
+  ws.getCell(r, 3).value = { formula: `SUM(C${a0}:C${e})`, result: jml };
+  ws.getCell(r, 4).value = { formula: `SUM(D${a0}:D${e})`, result: tot / 1440 };
+  ws.getCell(r, 5).value = { formula: `SUM(E${a0}:E${e})`, result: ter };
+  ws.getCell(r, 7).value = { formula: `IFERROR(AVERAGE(G${a0}:G${e}),"-")`, result: rata === null ? '-' : rata / 100 };
+  ws.getRow(r).height = 22; r += 2;
+  const k = ws.getCell(r, 1);
   k.value = 'Keterangan: Capaian = total jam kerja ÷ (hari kerja Senin–Jumat sampai hari ini × 7 jam 30 menit). Libur nasional dan cuti belum dikurangkan. Status: Baik ≥ 100%, Cukup 75–99%, Kurang < 75%.';
-  gaya(k, { size: 9, italic: true, warna: 'FF64748B', border: false });
-  ws.mergeCells(r, 2, r, 9); ws.getRow(r).height = 32;
+  gaya(k, { size: 9, italic: true, warna: 'FF595959', border: false, v: 'top' });
+  ws.mergeCells(r, 1, r, 9); ws.getRow(r).height = 30;
   ws.autoFilter = { from: { row: h0, column: 1 }, to: { row: e, column: 9 } };
   aturCetak(ws, `${h0}:${h0}`);
 }
 
-function sheetFlat(wb, rows) {
-  const ws = wb.addWorksheet('Semua Kegiatan', { views: [{ state: 'frozen', xSplit: 2, ySplit: 1 }] });
-  const W = [6, 28, 12, 10, 10, 10, 10, 46, 62, 9, 13];
-  ws.columns = W.map(width => ({ width }));
-  kepala(ws, 1, ['No', 'Pegawai', 'Tanggal', 'Hari', 'Jam Mulai', 'Jam Selesai', 'Durasi', 'Rencana Aksi (RHK)', 'Uraian Kegiatan', 'Output', 'Bukti Dukung']);
-  let r = 2, no = 1;
-  rows.forEach(p => p.items.forEach(x => {
-    const v = [no++, p.nama, tglDate(x.tanggal), HARI[tglDate(x.tanggal).getUTCDay()], jamFrac(x.jamMulai), jamFrac(x.jamSelesai), menit(x.jamMulai, x.jamSelesai) / 1440, x.rencanaAksi, x.kegiatanHarian, x.realisasi];
-    const f = [null, null, 'dd/mm/yyyy', null, 'hh:mm', 'hh:mm', '[h]:mm', null, null, null];
-    v.forEach((val, k) => { const c = ws.getCell(r, k + 1); c.value = val; gaya(c, { fmt: f[k], h: [1, 2, 7, 8].includes(k) ? 'left' : 'center' }); });
-    const u = aman(x.buktiDukung), b = ws.getCell(r, 11);
-    if (u) lampirBukti(b, u); else { b.value = '-'; gaya(b, { h: 'center' }); }
-    ws.getRow(r).height = tinggi([[x.rencanaAksi, W[7]], [x.kegiatanHarian, W[8]], [p.nama, W[1]]]); r++;
-  }));
-  if (r === 2) { ws.getCell(2, 2).value = 'Belum ada kegiatan pada periode ini.'; return; }
-  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: r - 1, column: 11 } };
-  aturCetak(ws, '1:1');
-}
-
 function sheetPegawai(wb, p, nama) {
-  const ws = wb.addWorksheet(nama, { views: [{ showGridLines: false }] });
-  ws.columns = [{ width: 7 }, { width: 17 }, { width: 46 }, { width: 62 }, { width: 10 }, { width: 12 }, { width: 12 }];
-  let r = kop(wb, ws, 'Rincian Kinerja Pegawai', `Periode ${periode()}`, 7);
-  const st = status(p.capaian).txt, [fb, fc] = STATUS_XL[st];
-  [['Pegawai', p.nama], ['Periode', periode()], ['Jumlah kegiatan', p.jml], ['Total jam kerja', p.total / 1440, '[h]:mm'], ['Hari terpenuhi', `${p.terpenuhi} dari ${p.hk} hari kerja`],
-   ['Capaian', p.capaian === null ? '-' : p.capaian / 100, '0%'], ['Bukti dukung', buktiPersen(p) / 100, '0%'], ['Status', st]].forEach(([l, v, f]) => {
-    const a = ws.getCell(r, 2); a.value = l; gaya(a, { bold: true, fill: WARNA.muda, v: 'middle' });
-    const b = ws.getCell(r, 3); b.value = v; gaya(b, { v: 'middle', fmt: f, bold: l === 'Pegawai' });
-    if (l === 'Status') gaya(b, { bold: true, fill: fb, warna: fc, v: 'middle' });
-    ws.getRow(r).height = 18; r++;
-  });
-  r++;
+  const ws = wb.addWorksheet(nama, { views: [{ state: 'frozen', ySplit: 5 }] });
+  const W = [40, 42, 10, 13, 7, 8, 7, 8, 12, 27, 75];
+  ws.columns = W.map(width => ({ width }));
+  judulLembar(ws, 'INSTRUMEN EKINERJA HARIAN', 11, `Pegawai: ${p.nama}     |     Periode: ${periode()}`);
+
+  for (let r = 4; r <= 5; r++) for (let c = 1; c <= 11; c++) gaya(ws.getCell(r, c), { bold: true, h: 'center', fill: ABU });
+  const set = (r, c, t) => { ws.getCell(r, c).value = t; };
+  set(4, 1, 'Rencana Aksi'); set(4, 2, 'Kegiatan Harian'); set(4, 3, 'Realisasi'); set(4, 4, 'Tanggal Kegiatan');
+  set(4, 5, 'Jam Mulai Kegiatan'); set(4, 7, 'Jam Selesai Kegiatan'); set(4, 9, 'Durasi Kerja'); set(4, 10, 'Status Jam Kerja');
+  set(4, 11, 'Bukti Dukung (Link ke file Google Drive/Dropbox/etc)');
+  set(5, 5, 'Jam'); set(5, 6, 'menit'); set(5, 7, 'Jam'); set(5, 8, 'menit');
+  [1, 2, 3, 4, 9, 10, 11].forEach(c => ws.mergeCells(4, c, 5, c));
+  ws.mergeCells(4, 5, 4, 6); ws.mergeCells(4, 7, 4, 8);
+  ws.getRow(4).height = 24; ws.getRow(5).height = 20;
+
+  let r = 6;
   if (!p.items.length) {
-    const c = ws.getCell(r, 1); c.value = 'Pegawai ini belum mengisi kegiatan pada periode ini.'; gaya(c, { italic: true, warna: 'FF64748B', border: false });
-    ws.mergeCells(r, 1, r, 7); aturCetak(ws); return;
+    const c = ws.getCell(r, 1); c.value = 'Pegawai ini belum mengisi kegiatan pada periode ini.';
+    gaya(c, { italic: true, warna: 'FF595959', h: 'center', border: false });
+    ws.mergeCells(r, 1, r, 11); ws.getRow(r).height = 26; aturCetak(ws); return;
   }
-  const judul = t => { const c = ws.getCell(r, 1); c.value = t; c.font = { name: 'Calibri', bold: true, size: 11, color: { argb: 'FF1E1B4B' } }; ws.getRow(r).height = 20; r++; };
+  const k = kel(p.items), harian = {};
+  Object.keys(k).forEach(t => { harian[t] = durHari(k[t]); });
 
-  judul('Ringkasan per Rencana Aksi (RHK)');
-  kepala(ws, r, ['No', 'Rencana Aksi (RHK)', '', '', 'Kegiatan', 'Total Jam', 'Output']); ws.mergeCells(r, 2, r, 4); r++;
-  Object.entries(p.rhk).sort((a, b) => b[1].m - a[1].m).forEach(([k, v], i) => {
-    [[1, i + 1, 'center'], [2, k, 'left'], [5, v.n, 'center'], [6, v.m / 1440, 'center'], [7, v.out, 'center']].forEach(([c, val, h]) => {
-      const cell = ws.getCell(r, c); cell.value = val; gaya(cell, { h, fmt: c === 6 ? '[h]:mm' : null });
-    });
-    gaya(ws.getCell(r, 3), {}); gaya(ws.getCell(r, 4), {});
-    ws.mergeCells(r, 2, r, 4); ws.getRow(r).height = tinggi([[k, 124]]); r++;
-  });
-  r++;
+  p.items.forEach(x => {
+    const [h1, m1] = x.jamMulai.split(':').map(Number), [h2, m2] = x.jamSelesai.split(':').map(Number);
+    const tot = harian[x.tanggal], ok = tot >= TARGET;
+    [[1, x.rencanaAksi, 'left', {}], [2, x.kegiatanHarian, 'left', {}], [3, x.realisasi, 'center', {}],
+     [4, tglDate(x.tanggal), 'center', { bold: true, fmt: 'dd/mm/yyyy' }],
+     [5, h1, 'center', { fmt: '00' }], [6, m1, 'center', { fmt: '00' }], [7, h2, 'center', { fmt: '00' }], [8, m2, 'center', { fmt: '00' }],
+     [9, menit(x.jamMulai, x.jamSelesai) / 1440, 'center', { fmt: '[h]:mm:ss' }]
+    ].forEach(([c, val, h, o]) => { const cell = ws.getCell(r, c); cell.value = val; gaya(cell, { h, ...o }); });
 
-  judul('Seluruh Kegiatan');
-  kepala(ws, r, ['No', 'Waktu', 'Rencana Aksi (RHK)', 'Uraian Kegiatan', 'Output', 'Durasi', 'Bukti']); r++;
-  const k = kel(p.items); let no = 1;
-  Object.keys(k).sort().forEach(t => {
-    const a = k[t], m = durHari(a), ok = m >= TARGET;
-    const g = ws.getCell(r, 1);
-    g.value = `${tglPanjang(t)}   |   ${a.length} kegiatan   |   ${fmt(m)}   |   ${ok ? 'Terpenuhi' : 'Kurang ' + fmt(TARGET - m)}`;
-    gaya(g, { bold: true, fill: WARNA.muda, warna: ok ? 'FF047857' : 'FFBE123C', v: 'middle', wrap: false });
-    ws.mergeCells(r, 1, r, 7); ws.getRow(r).height = 20; r++;
-    a.forEach(x => {
-      [[1, no++, 'center'], [2, `${x.jamMulai} - ${x.jamSelesai}`, 'center'], [3, x.rencanaAksi, 'left'], [4, x.kegiatanHarian, 'left'], [5, x.realisasi, 'center'], [6, menit(x.jamMulai, x.jamSelesai) / 1440, 'center']]
-        .forEach(([c, val, h]) => { const cell = ws.getCell(r, c); cell.value = val; gaya(cell, { h, fmt: c === 6 ? '[h]:mm' : null }); });
-      const u = aman(x.buktiDukung), b = ws.getCell(r, 7);
-      if (u) lampirBukti(b, u); else { b.value = '-'; gaya(b, { h: 'center' }); }
-      ws.getRow(r).height = tinggi([[x.rencanaAksi, 46], [x.kegiatanHarian, 62]]); r++;
-    });
+    const s = ws.getCell(r, 10);
+    gaya(s, { fill: MINT });
+    s.value = { richText: [
+      { text: ok ? '✓ ' : '✕ ', font: { name: 'Arial', size: 10, bold: true, color: { argb: ok ? 'FF1E7B34' : 'FFC00000' } } },
+      { text: ok ? 'Terpenuhi' : 'Kurang ' + fmtJ(TARGET - tot), font: { name: 'Arial', size: 10, color: { argb: 'FF000000' } } }
+    ] };
+
+    const u = aman(x.buktiDukung), b = ws.getCell(r, 11);
+    if (u) { b.value = { text: u, hyperlink: u }; gaya(b, { warna: 'FF0563C1', underline: true, wrap: false }); }
+    else { b.value = ''; gaya(b, {}); }
+    ws.getRow(r).height = tinggi([[x.rencanaAksi, W[0]], [x.kegiatanHarian, W[1]]]); r++;
   });
-  aturCetak(ws);
+  aturCetak(ws, '4:5');
 }
 
 const namaSheet = (n, dipakai) => {
@@ -414,8 +368,8 @@ async function xlsRingkasan(lengkap) {
   if (!siapXlsx()) return;
   const btn = $(lengkap ? 'btnX2' : 'btnX1'); btn.disabled = true;
   try {
-    const rows = semuaStat(), wb = bukuBaru(), dipakai = new Set(['ringkasan', 'semua kegiatan']);
-    sheetRingkasan(wb, rows); sheetFlat(wb, rows);
+    const rows = semuaStat(), wb = bukuBaru(), dipakai = new Set(['ringkasan']);
+    sheetRingkasan(wb, rows);
     if (lengkap) rows.forEach(p => sheetPegawai(wb, p, namaSheet(p.nama, dipakai)));
     await unduh(wb, `eKinerja_${lengkap ? 'Lengkap' : 'Ringkasan'}_${TAHUN}-${$('filterBulan').value}.xlsx`);
   } catch (e) { alert('Gagal membuat Excel: ' + e.message); }
