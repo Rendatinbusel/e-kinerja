@@ -5,11 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard e-Kinerja Pegawai KPU</title>
 <link rel="stylesheet" href="style.css">
-<script type="module" src="firebase-config.js"></script>
+<script src="api.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
-  /* Kelas tambahan (style.css adalah Tailwind hasil kompilasi, tidak memuat kelas baru) */
   .x-btn{font-size:12px;font-weight:600;padding:8px 14px;border-radius:4px;color:#fff;display:inline-flex;gap:6px;align-items:center;cursor:pointer;border:0;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:background .15s}
   .x-btn:disabled{opacity:.5;cursor:wait}
   .x-grn{background:#059669}.x-grn:hover{background:#10b981}
@@ -115,7 +114,6 @@ const kel = items => items.reduce((o, x) => ((o[x.tanggal] ||= []).push(x), o), 
 const durHari = a => a.reduce((s, x) => s + menit(x.jamMulai, x.jamSelesai), 0);
 const periode = () => `${NAMA_BULAN[+$('filterBulan').value - 1]} ${TAHUN}`;
 
-/* ---------- Data ---------- */
 function gabung() {
   db = {};
   semuaUser.filter(u => u.nama && u.role !== 'admin').forEach(u => db[u.nama] = []);
@@ -130,11 +128,9 @@ async function muatData() {
   } catch (e) { alert('Gagal memuat data: ' + e.message); }
   b.disabled = false;
 }
-// Ganti bulan => ambil ulang data bulan tersebut dari server
 document.addEventListener('DOMContentLoaded', () => $('filterBulan').onchange = () => { terbuka = null; muatData(); });
 window.onload = () => mulaiAuth('admin', u => { $('namaUser').innerText = u.nama; muatData(); });
 
-/* ---------- Perhitungan ---------- */
 function batas(bln) {
   const now = new Date(), m = +bln - 1;
   const akhir = new Date(+TAHUN, m + 1, 0).getDate();
@@ -171,7 +167,6 @@ function status(c) {
 const semuaStat = () => { const b = $('filterBulan').value; return Object.keys(db).map(n => statPegawai(n, b)).sort((a, b) => a.nama.localeCompare(b.nama)); };
 const buktiPersen = r => r.jml ? Math.round(r.bukti / r.jml * 100) : 0;
 
-/* ---------- Tampilan ---------- */
 function render() {
   const q = $('cari').value.toLowerCase();
   const ada = Object.keys(db).length;
@@ -233,7 +228,6 @@ function detail(r, i) {
 }
 function toggle(i) { const n = tampil[i].nama; terbuka = terbuka === n ? null : n; render(); }
 
-/* ---------- Ekspor Excel (ExcelJS) ---------- */
 const WARNA = { indigo: 'FF312E81', muda: 'FFE0E7FF', abu: 'FFF1F5F9' };
 const GARIS = { style: 'thin', color: { argb: 'FFBFC7D5' } };
 const BORDER = { top: GARIS, left: GARIS, bottom: GARIS, right: GARIS };
@@ -255,7 +249,7 @@ function logoData() {
       c.getContext('2d').drawImage(im, 0, 0, w, h);
       logoCache = { url: c.toDataURL('image/png'), w, h };
     }
-  } catch (e) { /* logo dilewati bila gagal (mis. dibuka dari file://) */ }
+  } catch (e) {}
   return logoCache;
 }
 
