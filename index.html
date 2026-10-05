@@ -4,15 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aplikasi e-Kinerja Harian ASN KPU</title>
-    <script type="module" src="firebase-config.js"></script>
-    <!-- Tailwind CSS CDN -->
+    <script src="api.js"></script>
     <link rel="stylesheet" href="style.css">
-    <!-- FontAwesome Icon -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen">
 
-    <!-- 1. HEADER UTAMA -->
     <header class="bg-indigo-900 text-white shadow-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
             
@@ -41,10 +38,8 @@
         </div>
     </header>
 
-    <!-- CONTAINER UTAMA -->
     <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-        <!-- 2. MONITORING CAPAIAN JAM KERJA -->
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
                 <div>
@@ -79,10 +74,8 @@
             </div>
         </section>
 
-        <!-- 3. BLOK AREA KERJA -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-            <!-- FORM INPUT (KIRI) -->
             <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200">
                     <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
@@ -98,7 +91,6 @@
                         <input type="date" id="tanggal" required onchange="updateJamKerjaIndicator()" class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
 
-                    <!-- INPUT RHK DIUBAH MENJADI FORM TEKS MANUAL -->
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Rencana Aksi (RHK)</label>
                         <textarea id="rencanaAksi" rows="2" required placeholder="Tuliskan Rencana Aksi" class="w-full text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
@@ -145,7 +137,6 @@
                 </form>
             </div>
 
-            <!-- TABEL TERKLASIFIKASI PER TANGGAL (KANAN) -->
             <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                 
                 <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -171,7 +162,6 @@
                             </tr>
                         </thead>
                         <tbody id="tableBody">
-                            <!-- Data dikelompokkan per tanggal dirender via JS -->
                         </tbody>
                     </table>
                 </div>
@@ -186,9 +176,8 @@
 
     </main>
 
-    <!-- LOGIKA JAVASCRIPT GROUPING PER TANGGAL -->
     <script>
-        const TARGET_MENIT_HARIAN = 450; // 7 Jam 30 Menit
+        const TARGET_MENIT_HARIAN = 450;
 
         let listKegiatan = [
             {
@@ -315,7 +304,6 @@
 
             tbody.innerHTML = '';
 
-            // Filter Bulan & Pencarian
             const filtered = listKegiatan.filter(item => {
                 const itemBulan = String(new Date(item.tanggal).getMonth() + 1).padStart(2, '0');
                 const matchBulan = itemBulan === bulanSelected;
@@ -330,14 +318,12 @@
             }
             emptyState.classList.add('hidden');
 
-            // Kelompokkan data berdasarkan Tanggal
             const groupedByDate = {};
             filtered.forEach(item => {
                 if (!groupedByDate[item.tanggal]) groupedByDate[item.tanggal] = [];
                 groupedByDate[item.tanggal].push(item);
             });
 
-            // Urutkan tanggal dari terbaru ke terlama
             const sortedDates = Object.keys(groupedByDate).sort().reverse();
 
             sortedDates.forEach(tanggal => {
@@ -345,7 +331,6 @@
                 const totalMenitHariIni = items.reduce((sum, i) => sum + hitungMenitDurasi(i.jamMulai, i.jamSelesai), 0);
                 const statusTerpenuhi = totalMenitHariIni >= TARGET_MENIT_HARIAN;
 
-                // 1. HEADER GRUP TANGGAL
                 const headerRow = document.createElement('tr');
                 headerRow.className = "bg-indigo-50/80 border-y border-indigo-100";
                 headerRow.innerHTML = `
@@ -367,7 +352,6 @@
                 `;
                 tbody.appendChild(headerRow);
 
-                // 2. BARIS ITEM KEGIATAN UNTUK TANGGAL TERSEBUT
                 items.forEach(item => {
                     const durasiMenit = hitungMenitDurasi(item.jamMulai, item.jamSelesai);
                     const row = document.createElement('tr');
