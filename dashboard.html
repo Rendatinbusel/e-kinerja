@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard e-Kinerja Pegawai KPU</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen">
+
+<header class="bg-indigo-900 text-white shadow-md sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
+    <div class="flex items-center gap-3">
+      <img src="LOGO KPU.png" alt="Logo KPU" class="h-12 w-auto bg-white p-1 rounded shadow object-contain">
+      <div>
+        <h1 class="text-lg font-bold tracking-wide">Dashboard e-Kinerja Pegawai</h1>
+        <p class="text-xs text-indigo-200">KPU Kabupaten Buton Selatan</p>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-2 justify-end">
+      <label class="text-xs font-medium text-indigo-100">Periode:</label>
+      <select id="filterBulan" onchange="render()" class="bg-indigo-800 text-white text-xs rounded border border-indigo-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400">
+        <option value="10">Oktober 2026</option>
+        <option value="11">November 2026</option>
+        <option value="12">Desember 2026</option>
+      </select>
+      <div class="flex items-center gap-2 text-xs"><i class="fa-solid fa-user-shield"></i><span id="namaUser" class="font-semibold">-</span><button onclick="keluar()" class="underline text-indigo-200 hover:text-white">Keluar</button></div>
+      <button onclick="exportRingkasan()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3.5 py-2 rounded font-semibold flex items-center gap-1.5 transition shadow">
+        <i class="fa-solid fa-file-excel"></i> Export ringkasan
+      </button>
+      
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+  <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl border border-slate-200 p-4"><span class="text-xs text-slate-500 block">Jumlah pegawai</span><span id="cPegawai" class="text-2xl font-bold">0</span></div>
+    <div class="bg-white rounded-xl border border-slate-200 p-4"><span class="text-xs text-slate-500 block">Total kegiatan</span><span id="cKegiatan" class="text-2xl font-bold">0</span></div>
+    <div class="bg-white rounded-xl border border-slate-200 p-4"><span class="text-xs text-slate-500 block">Total jam kerja</span><span id="cJam" class="text-2xl font-bold">0 jam</span></div>
+    <div class="bg-white rounded-xl border border-slate-200 p-4"><span class="text-xs text-slate-500 block">Rata-rata capaian</span><span id="cCapaian" class="text-2xl font-bold text-indigo-700">-</span></div>
+  </section>
+
+  <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div>
+        <h2 class="font-bold text-sm">Rekap kinerja per pegawai</h2>
+        <p class="text-[11px] text-slate-500">Klik nama pegawai untuk melihat rincian per hari dan per rencana aksi</p>
+      </div>
+      <div class="relative w-full sm:w-56">
+        <input id="cari" onkeyup="render()" placeholder="Cari nama pegawai..." class="w-full text-xs border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i>
+      </div>
+    </div>
+
+    <div id="tabelWrap" class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+            <th class="p-3 w-10">No</th><th class="p-3">Pegawai</th>
+            <th class="p-3 text-center">Kegiatan</th><th class="p-3 text-center">Total jam</th>
+            <th class="p-3 text-center">Hari terpenuhi</th><th class="p-3">Capaian jam kerja</th>
+            <th class="p-3 text-center">Bukti dukung</th><th class="p-3 text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div id="empty" class="hidden p-10 text-center">
+      <i class="fa-solid fa-users text-3xl text-slate-300 mb-2"></i>
+      <p class="text-sm font-semibold text-slate-700">Belum ada data kinerja</p>
+      <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">Data muncul otomatis setelah pegawai mengisi kegiatan di halaman input.</p>
+    </div>
+  </section>
+
+  <p class="text-[11px] text-slate-500 leading-relaxed">
+    Capaian = total jam kerja ÷ (hari kerja Senin–Jumat sampai hari ini × 7 jam 30 menit). Libur nasional dan cuti belum dikurangkan.
+    Status: Baik ≥ 100%, Cukup 75–99%, Kurang &lt; 75%. Data diperbarui otomatis dari server.
+  </p>
+</main>
+
+<script>
+const TARGET = 450, KEY = 'ekinerja_dashboard', TAHUN = '2026';
+let db = {}, tampil = [], terbuka = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const menit = (a, b) => { if (!a || !b) return 0; const [h1, m1] = a.split(':').map(Number), [h2, m2] = b.split(':').map(Number); return Math.max(0, h2*60 + m2 - h1*60 - m1); };
+const fmt = m => `${Math.floor(m/60)} jam ${String(m%60).padStart(2,'0')} mnt`;
+
+let semuaUser = [], semuaKeg = [];
+function gabung() {
+  db = {};
+  semuaUser.filter(u => u.nama && u.role !== 'admin').forEach(u => db[u.nama] = []);
+  semuaKeg.forEach(x => (db[x.pegawai || '(tanpa nama)'] ||= []).push(x));
+  render();
+}
+window.onload = () => mulaiAuth('admin', u => {
+  $('namaUser').innerText = u.nama;
+  const err = e => alert('Gagal memuat data: ' + e.message);
+  fs.collection('users').onSnapshot(s => { semuaUser = s.docs.map(x => x.data()); gabung(); }, err);
+  fs.collection('kegiatan').onSnapshot(s => { semuaKeg = s.docs.map(x => x.data()); gabung(); }, err);
+});
+
+// Hari terakhir bulan terpilih yang dihitung (0 = bulan belum dimulai)
+function batas(bln) {
+  const now = new Date(), m = +bln - 1;
+  const akhir = new Date(+TAHUN, m + 1, 0).getDate();
+  const a = new Date(+TAHUN, m, 1), b = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (a > b) return 0;
+  return a.getTime() === b.getTime() ? Math.min(akhir, now.getDate()) : akhir;
+}
+function hariKerja(bln) {
+  let n = 0;
+  for (let d = 1; d <= batas(bln); d++) { const w = new Date(+TAHUN, +bln - 1, d).getDay(); if (w && w < 6) n++; }
+  return n;
+}
+
+function statPegawai(nama, bln) {
+  const it = db[nama].filter(x => x.tanggal.startsWith(`${TAHUN}-${bln}`));
+  const harian = {}, rhk = {};
+  let total = 0, bukti = 0;
+  it.forEach(x => {
+    const d = menit(x.jamMulai, x.jamSelesai); total += d; if (x.buktiDukung) bukti++;
+    const h = harian[x.tanggal] ||= { n: 0, m: 0 }; h.n++; h.m += d;
+    const r = rhk[x.rencanaAksi] ||= { n: 0, m: 0, out: 0 }; r.n++; r.m += d; r.out += x.realisasi;
+  });
+  const hk = hariKerja(bln);
+  return { nama, jml: it.length, harian, rhk, total, bukti, hk,
+           terpenuhi: Object.values(harian).filter(h => h.m >= TARGET).length,
+           capaian: hk ? Math.round(total / (hk * TARGET) * 100) : null };
+}
+
+function status(c) {
+  if (c === null) return { txt: '-', cls: 'bg-slate-100 text-slate-500', bar: 'bg-slate-300' };
+  if (c >= 100) return { txt: 'Baik', cls: 'bg-emerald-100 text-emerald-800', bar: 'bg-emerald-500' };
+  if (c >= 75) return { txt: 'Cukup', cls: 'bg-amber-100 text-amber-800', bar: 'bg-amber-500' };
+  return { txt: 'Kurang', cls: 'bg-rose-100 text-rose-800', bar: 'bg-rose-500' };
+}
+
+function render() {
+  const bln = $('filterBulan').value, q = $('cari').value.toLowerCase();
+  const ada = Object.keys(db).length;
+  const semua = Object.keys(db).map(n => statPegawai(n, bln));
+  tampil = semua.filter(r => r.nama.toLowerCase().includes(q)).sort((a, b) => a.nama.localeCompare(b.nama));
+
+  const cap = semua.filter(r => r.capaian !== null).map(r => r.capaian);
+  $('cPegawai').innerText = ada;
+  $('cKegiatan').innerText = semua.reduce((s, r) => s + r.jml, 0);
+  $('cJam').innerText = Math.round(semua.reduce((s, r) => s + r.total, 0) / 60) + ' jam';
+  $('cCapaian').innerText = cap.length ? Math.round(cap.reduce((a, b) => a + b, 0) / cap.length) + '%' : '-';
+  $('empty').classList.toggle('hidden', ada > 0);
+  $('tabelWrap').classList.toggle('hidden', ada === 0);
+
+  $('tbody').innerHTML = tampil.length ? tampil.map((r, i) => {
+    const s = status(r.capaian), buktiPct = r.jml ? Math.round(r.bukti / r.jml * 100) : 0, buka = terbuka === r.nama;
+    return `<tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="toggle(${i})">
+      <td class="p-3 text-slate-400">${i + 1}</td>
+      <td class="p-3 font-semibold text-indigo-900"><i class="fa-solid fa-chevron-${buka ? 'down' : 'right'} text-[10px] text-slate-400 mr-2"></i>${esc(r.nama)}</td>
+      <td class="p-3 text-center">${r.jml}</td>
+      <td class="p-3 text-center whitespace-nowrap">${fmt(r.total)}</td>
+      <td class="p-3 text-center">${r.terpenuhi} / ${r.hk}</td>
+      <td class="p-3 w-48"><div class="flex items-center gap-2">
+        <div class="flex-1 bg-slate-200 h-2.5 rounded-full overflow-hidden"><div class="${s.bar} h-full" style="width:${Math.min(100, r.capaian || 0)}%"></div></div>
+        <span class="w-9 text-right font-semibold">${r.capaian === null ? '-' : r.capaian + '%'}</span></div></td>
+      <td class="p-3 text-center">${buktiPct}%</td>
+      <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${s.cls}">${s.txt}</span></td>
+      </tr>` + (buka ? detail(r) : '');
+  }).join('') : '<tr><td colspan="8" class="p-6 text-center text-slate-400">Tidak ada pegawai yang cocok.</td></tr>';
+}
+
+function detail(r) {
+  const hari = Object.keys(r.harian).sort().map(t => {
+    const h = r.harian[t];
+    return `<tr class="border-b border-slate-100"><td class="py-1 pr-4 font-mono">${t}</td><td class="pr-4">${h.n} kegiatan</td><td class="pr-4">${fmt(h.m)}</td><td>${h.m >= TARGET ? '✅ Terpenuhi' : '❌ Kurang ' + fmt(TARGET - h.m)}</td></tr>`;
+  }).join('') || '<tr><td class="py-1 text-slate-400">Belum ada kegiatan pada bulan ini.</td></tr>';
+  const rhk = Object.entries(r.rhk).sort((a, b) => b[1].m - a[1].m).map(([k, v]) =>
+    `<li class="py-1.5 border-b border-slate-100"><p class="font-semibold text-indigo-900">${esc(k)}</p><p class="text-slate-500">${v.n} kegiatan · ${fmt(v.m)} · ${v.out} output</p></li>`).join('');
+  return `<tr class="bg-slate-50"><td colspan="8" class="p-4"><div class="grid md:grid-cols-2 gap-6 text-xs">
+    <div><h4 class="font-bold mb-2">Capaian per hari</h4><table>${hari}</table></div>
+    <div><h4 class="font-bold mb-2">Per rencana aksi (RHK)</h4><ul>${rhk || '<li class="text-slate-400">-</li>'}</ul></div></div></td></tr>`;
+}
+
+function toggle(i) { const n = tampil[i].nama; terbuka = terbuka === n ? null : n; render(); }
+
+function exportRingkasan() {
+  const bln = $('filterBulan').value, q = s => `"${String(s).replace(/"/g, '""')}"`;
+  let csv = 'Pegawai,Kegiatan,Total Jam,Hari Terpenuhi,Hari Kerja,Capaian,Bukti Dukung,Status\n';
+  Object.keys(db).sort().forEach(n => {
+    const r = statPegawai(n, bln);
+    csv += [q(r.nama), r.jml, q(fmt(r.total)), r.terpenuhi, r.hk, r.capaian === null ? '' : r.capaian + '%', r.jml ? Math.round(r.bukti / r.jml * 100) + '%' : '0%', status(r.capaian).txt].join(',') + '\n';
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = `eKinerja_Ringkasan_${TAHUN}-${bln}.csv`;
+  a.click();
+}
+</script>
+</body>
+</html>
