@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masuk | e-Kinerja Pegawai KPU</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="api.js"></script>
+<style>
+  body{background:linear-gradient(160deg,#1e1b4b 0%,#312e81 100%)}
+  .lg-wrap{width:100%;max-width:400px}
+  .lg-card{background:#fff;border-radius:16px;box-shadow:0 20px 40px rgba(0,0,0,.35);padding:30px 26px}
+  .lg-head{text-align:center;margin-bottom:22px}
+  .lg-logo{height:84px;width:auto;object-fit:contain;margin:0 auto 12px;display:block}
+  .lg-title{font-size:20px;font-weight:700;color:#1e1b4b}
+  .lg-sub{font-size:12px;color:#64748b;margin-top:2px}
+  .lg-lbl{display:block;font-size:12px;font-weight:600;color:#334155;margin-bottom:6px}
+  .lg-box{position:relative;margin-bottom:16px}
+  .lg-in{width:100%;box-sizing:border-box;font-size:14px;border:1px solid #cbd5e1;border-radius:8px;padding:11px 12px;outline:none;background:#fff;color:#0f172a}
+  .lg-in:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(99,102,241,.25)}
+  .lg-pass{padding-right:42px}
+  .lg-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;background:transparent;color:#64748b;cursor:pointer;border-radius:8px}
+  .lg-eye:hover{color:#312e81;background:#eef2ff}
+  .lg-err{background:#ffe4e6;color:#9f1239;font-size:12px;border-radius:8px;padding:9px 12px;margin-bottom:14px}
+  .lg-btn{width:100%;background:#4f46e5;color:#fff;font-size:14px;font-weight:600;padding:12px;border:0;border-radius:8px;cursor:pointer;transition:background .15s}
+  .lg-btn:hover{background:#4338ca}
+  .lg-btn:disabled{opacity:.6;cursor:wait}
+  .lg-note{text-align:center;font-size:11px;color:#94a3b8;margin-top:16px}
+  .lg-foot{text-align:center;font-size:11px;color:#c7d2fe;margin-top:18px}
+</style>
+</head>
+<body class="font-sans antialiased min-h-screen flex items-center justify-center p-4">
+<main class="lg-wrap">
+  <div class="lg-card">
+    <div class="lg-head">
+      <img class="lg-logo" src="LOGO_KPU.png" onerror="this.onerror=function(){this.style.display='none'};this.src='LOGO KPU.png'" alt="Logo KPU">
+      <h1 class="lg-title">e-Kinerja Pegawai</h1>
+      <p class="lg-sub">KPU Kabupaten Buton Selatan</p>
+    </div>
+    <form id="form" autocomplete="on" novalidate>
+      <div id="err" class="lg-err" role="alert" hidden></div>
+      <label class="lg-lbl" for="user">Username</label>
+      <div class="lg-box"><input id="user" class="lg-in" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Masukkan username"></div>
+      <label class="lg-lbl" for="pass">Password</label>
+      <div class="lg-box">
+        <input id="pass" class="lg-in lg-pass" type="password" autocomplete="current-password" placeholder="Masukkan password">
+        <button id="eye" class="lg-eye" type="button" aria-label="Tampilkan password"><i class="fa-solid fa-eye"></i></button>
+      </div>
+      <button id="btn" class="lg-btn" type="submit">Masuk</button>
+    </form>
+    <p class="lg-note">Lupa password atau belum punya akun? Hubungi admin.</p>
+  </div>
+  <p class="lg-foot">&copy; KPU Kabupaten Buton Selatan</p>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const err = t => { $('err').textContent = t; $('err').hidden = !t; };
+
+$('eye').onclick = () => {
+  const p = $('pass'), tampil = p.type === 'password';
+  p.type = tampil ? 'text' : 'password';
+  $('eye').innerHTML = '<i class="fa-solid fa-eye' + (tampil ? '-slash' : '') + '"></i>';
+};
+
+$('form').onsubmit = async ev => {
+  ev.preventDefault(); err('');
+  const u = $('user').value.trim(), p = $('pass').value;
+  if (!u || !p) { err('Username dan password wajib diisi.'); return; }
+  const b = $('btn'); b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa...';
+  try {
+    const user = await ekLogin(u, p);
+    location.replace(ekHalaman(user.role));
+  } catch (e) {
+    err(e.message); b.disabled = false; b.textContent = 'Masuk'; $('pass').value = ''; $('pass').focus();
+  }
+};
+
+ekSesi().then(u => { if (u) location.replace(ekHalaman(u.role)); }).catch(() => {});
+$('user').focus();
+</script>
+</body>
+</html>
