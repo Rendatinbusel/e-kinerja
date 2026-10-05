@@ -4,11 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard e-Kinerja Pegawai KPU</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js"></script>
+<link rel="stylesheet" href="style.css">
+<script type="module" src="firebase-config.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen">
@@ -24,11 +21,12 @@
     </div>
     <div class="flex flex-wrap items-center gap-2 justify-end">
       <label class="text-xs font-medium text-indigo-100">Periode:</label>
-      <select id="filterBulan" onchange="render()" class="bg-indigo-800 text-white text-xs rounded border border-indigo-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400">
+      <select id="filterBulan" onchange="muatData()" class="bg-indigo-800 text-white text-xs rounded border border-indigo-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400">
         <option value="10">Oktober 2026</option>
         <option value="11">November 2026</option>
         <option value="12">Desember 2026</option>
       </select>
+      <button id="btnMuat" onclick="muatData()" class="bg-indigo-700 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs px-3.5 py-2 rounded font-semibold"><i class="fa-solid fa-rotate"></i> Muat ulang</button>
       <div class="flex items-center gap-2 text-xs"><i class="fa-solid fa-user-shield"></i><span id="namaUser" class="font-semibold">-</span><button onclick="keluar()" class="underline text-indigo-200 hover:text-white">Keluar</button></div>
       <button onclick="exportRingkasan()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3.5 py-2 rounded font-semibold flex items-center gap-1.5 transition shadow">
         <i class="fa-solid fa-file-excel"></i> Export ringkasan
@@ -76,13 +74,13 @@
     <div id="empty" class="hidden p-10 text-center">
       <i class="fa-solid fa-users text-3xl text-slate-300 mb-2"></i>
       <p class="text-sm font-semibold text-slate-700">Belum ada data kinerja</p>
-      <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">Data muncul otomatis setelah pegawai mengisi kegiatan di halaman input.</p>
+      <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">Data muncul setelah pegawai mengisi kegiatan. Tekan Muat ulang untuk memeriksa.</p>
     </div>
   </section>
 
   <p class="text-[11px] text-slate-500 leading-relaxed">
     Capaian = total jam kerja ÷ (hari kerja Senin–Jumat sampai hari ini × 7 jam 30 menit). Libur nasional dan cuti belum dikurangkan.
-    Status: Baik ≥ 100%, Cukup 75–99%, Kurang &lt; 75%. Data diperbarui otomatis dari server.
+    Status: Baik ≥ 100%, Cukup 75–99%, Kurang &lt; 75%. Data diambil dari server saat halaman dibuka; tekan Muat ulang untuk memperbarui.
   </p>
 </main>
 
@@ -101,12 +99,15 @@ function gabung() {
   semuaKeg.forEach(x => (db[x.pegawai || '(tanpa nama)'] ||= []).push(x));
   render();
 }
-window.onload = () => mulaiAuth('admin', u => {
-  $('namaUser').innerText = u.nama;
-  const err = e => alert('Gagal memuat data: ' + e.message);
-  fs.collection('users').onSnapshot(s => { semuaUser = s.docs.map(x => x.data()); gabung(); }, err);
-  fs.collection('kegiatan').onSnapshot(s => { semuaKeg = s.docs.map(x => x.data()); gabung(); }, err);
-});
+async function muatData() {
+  const b = $('btnMuat'); b.disabled = true;
+  try {
+    const [u, k] = await Promise.all([semuaUser.length ? semuaUser : ekDb.users(), ekDb.kegiatanBulan($('filterBulan').value)]);
+    semuaUser = u; semuaKeg = k; gabung();
+  } catch (e) { alert('Gagal memuat data: ' + e.message); }
+  b.disabled = false;
+}
+window.onload = () => mulaiAuth('admin', u => { $('namaUser').innerText = u.nama; muatData(); });
 
 // Hari terakhir bulan terpilih yang dihitung (0 = bulan belum dimulai)
 function batas(bln) {
