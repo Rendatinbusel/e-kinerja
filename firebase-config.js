@@ -1,6 +1,8 @@
 (() => {
   const API_URL = 'https://script.google.com/macros/s/AKfycbw64ts9jxaM85iUf1lbnXQYCh7_3CpWuJiaTCSKOaHFGWlorQ_IQ-ZzSno3te91XoDvFw/exec';
   const KEY = 'ekinerja_token';
+  const HALAMAN = { admin: 'dashboard.html', pegawai: 'index.html' };
+  const keLogin = () => location.replace('login.html');
 
   async function panggil(aksi, data = {}) {
     if (API_URL.startsWith('GANTI')) throw new Error('URL Apps Script belum diisi di api.js');
@@ -11,11 +13,25 @@
     } catch (e) { throw new Error('Tidak dapat terhubung ke server. Periksa koneksi internet.'); }
     const j = await res.json().catch(() => null);
     if (!j) throw new Error('Respons server tidak valid. Pastikan deploy Apps Script: akses "Anyone".');
-    if (!j.ok) { if (j.kode === 'AUTH') localStorage.removeItem(KEY); const e = new Error(j.error || 'Gagal'); e.kode = j.kode; throw e; }
+    if (!j.ok) {
+      const e = new Error(j.error || 'Gagal'); e.kode = j.kode;
+      if (j.kode === 'AUTH') { localStorage.removeItem(KEY); if (aksi !== 'me') setTimeout(keLogin, 1500); }
+      throw e;
+    }
     return j.data;
   }
 
-  window.keluar = () => { localStorage.removeItem(KEY); location.reload(); };
+  window.keluar = () => { localStorage.removeItem(KEY); keLogin(); };
+  window.ekHalaman = role => HALAMAN[role] || 'index.html';
+  window.ekLogin = async (username, password) => {
+    const r = await panggil('login', { username, password });
+    localStorage.setItem(KEY, r.token);
+    return r.user;
+  };
+  window.ekSesi = async () => {
+    if (!localStorage.getItem(KEY)) return null;
+    try { return await panggil('me'); } catch (e) { if (e.kode === 'AUTH') return null; throw e; }
+  };
 
   window.ekDb = {
     kegiatanSaya: () => panggil('kegiatanSaya'),
@@ -28,33 +44,24 @@
   window.mulaiAuth = (perlu, onReady) => {
     const ov = document.createElement('div');
     ov.className = 'fixed inset-0 z-[100] bg-indigo-950 flex items-center justify-center p-4';
-    ov.innerHTML = `<form class="hidden bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-3">
-      <div><h2 class="font-bold text-lg text-slate-800">${perlu === 'admin' ? 'Masuk sebagai admin' : 'Masuk e-Kinerja'}</h2>
-      <p class="text-xs text-slate-500">KPU Kabupaten Buton Selatan</p></div>
-      <input id="ekUser" required placeholder="Username" autocomplete="username" class="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-      <input id="ekPass" type="password" required placeholder="Password" autocomplete="current-password" class="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-      <p id="ekErr" class="text-xs text-rose-600 hidden"></p>
-      <button id="ekBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg">Masuk</button>
-    </form>`;
     document.body.appendChild(ov);
-    const form = ov.firstElementChild, errEl = ov.querySelector('#ekErr'), btn = ov.querySelector('#ekBtn');
-    const err = t => { errEl.innerText = t; errEl.classList.toggle('hidden', !t); };
-
-    const lanjut = u => {
-      if (u.role !== perlu) { location.href = u.role === 'admin' ? 'dashboard.html' : 'index.html'; return; }
-      ov.remove(); onReady(u);
+    const cek = () => {
+      ov.innerHTML = '<p class="text-sm text-indigo-100"><i class="fa-solid fa-spinner fa-spin"></i> Memeriksa sesi...</p>';
+      if (!localStorage.getItem(KEY)) { keLogin(); return; }
+      panggil('me').then(u => {
+        if (u.role !== perlu) { location.replace(window.ekHalaman(u.role)); return; }
+        ov.remove(); onReady(u);
+      }).catch(e => {
+        if (e.kode === 'AUTH') { keLogin(); return; }
+        ov.innerHTML = '<div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm text-center space-y-3">' +
+          '<p class="text-sm text-slate-700"></p>' +
+          '<button id="ekUlang" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2.5 rounded-lg">Coba lagi</button>' +
+          '<button id="ekLogin" class="underline text-xs text-slate-500">Ke halaman login</button></div>';
+        ov.querySelector('p').textContent = e.message;
+        ov.querySelector('#ekUlang').onclick = cek;
+        ov.querySelector('#ekLogin').onclick = window.keluar;
+      });
     };
-
-    form.onsubmit = async ev => {
-      ev.preventDefault(); err(''); btn.disabled = true; btn.innerText = 'Memeriksa...';
-      try {
-        const r = await panggil('login', { username: ov.querySelector('#ekUser').value, password: ov.querySelector('#ekPass').value });
-        localStorage.setItem(KEY, r.token); lanjut(r.user);
-      } catch (e) { err(e.message); }
-      btn.disabled = false; btn.innerText = 'Masuk';
-    };
-
-    if (localStorage.getItem(KEY)) panggil('me').then(lanjut).catch(e => { form.classList.remove('hidden'); if (e.kode !== 'AUTH') err(e.message); });
-    else form.classList.remove('hidden');
+    cek();
   };
 })();
