@@ -70,8 +70,7 @@
         <p class="text-[11px] text-slate-500">Klik nama pegawai untuk melihat seluruh kegiatan yang telah diisinya pada periode terpilih</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <button id="btnX1" onclick="xlsRingkasan(false)" class="x-btn x-grn x-sm"><i class="fa-solid fa-file-excel"></i> Excel ringkasan</button>
-        <button id="btnX2" onclick="xlsRingkasan(true)" class="x-btn x-grn x-sm"><i class="fa-solid fa-file-excel"></i> Excel lengkap semua pegawai</button>
+        <button id="btnX2" onclick="xlsLengkap()" class="x-btn x-grn x-sm"><i class="fa-solid fa-file-excel"></i> Excel lengkap semua pegawai</button>
         <div class="relative w-full sm:w-52">
           <input id="cari" onkeyup="render()" placeholder="Cari nama pegawai..." class="w-full text-xs border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
           <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i>
@@ -394,14 +393,14 @@ async function unduh(wb, nama) {
   a.download = nama; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
-async function xlsRingkasan(lengkap) {
+async function xlsLengkap() {
   if (!siapXlsx()) return;
-  const btn = $(lengkap ? 'btnX2' : 'btnX1'); btn.disabled = true;
+  const btn = $('btnX2'); btn.disabled = true;
   try {
     const rows = semuaStat(), wb = bukuBaru(), dipakai = new Set(['ringkasan']);
     sheetRingkasan(wb, rows);
-    if (lengkap) rows.forEach(p => sheetPegawai(wb, p, namaSheet(p.nama, dipakai)));
-    await unduh(wb, `eKinerja_${lengkap ? 'Lengkap' : 'Ringkasan'}_${kodePeriode()}.xlsx`);
+    rows.forEach(p => sheetPegawai(wb, p, namaSheet(p.nama, dipakai)));
+    await unduh(wb, `eKinerja_Lengkap_${kodePeriode()}.xlsx`);
   } catch (e) { alert('Gagal membuat Excel: ' + e.message); }
   btn.disabled = false;
 }
