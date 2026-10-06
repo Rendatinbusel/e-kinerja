@@ -25,12 +25,6 @@
   .x-seg button.on{background:#4f46e5;color:#fff}
   .x-in{font-size:12px;border:1px solid #cbd5e1;border-radius:8px;padding:7px 10px;background:#fff;color:#0f172a}
   .x-in:focus{outline:2px solid #6366f1}
-  .x-dh{padding:8px 4px;text-align:center;font-size:10px;line-height:1.3;white-space:nowrap;min-width:38px}
-  .x-dh span{font-weight:400;color:#64748b}
-  .x-d{padding:10px 4px;text-align:center;font-size:11px;white-space:nowrap}
-  .x-d.ok{background:#d1fae5;color:#065f46;font-weight:600}
-  .x-d.kurang{background:#ffe4e6;color:#9f1239;font-weight:600}
-  .x-d.kosong{color:#cbd5e1}
   .x-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:12px}
 </style>
 </head>
@@ -87,7 +81,12 @@
     <div id="tabelWrap" class="overflow-x-auto">
       <table class="w-full text-left border-collapse text-xs">
         <thead>
-          <tr id="thr" class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200"></tr>
+          <tr class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+            <th class="p-3 w-10">No</th><th class="p-3">Pegawai</th>
+            <th class="p-3 text-center">Kegiatan</th><th class="p-3 text-center">Hari kerja</th>
+            <th class="p-3">Capaian jam kerja</th>
+            <th class="p-3 text-center">Bukti dukung</th><th class="p-3 text-center">Status</th>
+          </tr>
         </thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -103,14 +102,14 @@
   <p class="text-[11px] text-slate-500 leading-relaxed">
     Halaman ini hanya untuk melihat dan melaporkan data; seluruh data diisi oleh masing-masing pegawai lewat halaman input.
     Capaian = total jam kerja ÷ (jumlah hari yang ada isiannya × 7 jam 30 menit), ditampilkan sebagai total jam yang tercapai. Hari tanpa isian tidak dihitung.
-    Status: Tercapai bila total jam ≥ target, selain itu Belum tercapai. Kolom hari: hijau = ≥ 7 jam 30 menit, merah = kurang. Tekan Muat ulang untuk memperbarui data dari server.
+    Status: Tercapai bila total jam ≥ target, selain itu Belum tercapai. Tekan Muat ulang untuk memperbarui data dari server.
   </p>
 </main>
 
 <script>
 const TARGET = 450, TAHUN = '2026';
 const NAMA_BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-let db = {}, tampil = [], terbuka = null, semuaUser = [], semuaKeg = [], cache = {}, mode = 'bulanan', tglPilih = '', nkol = 6;
+let db = {}, tampil = [], terbuka = null, semuaUser = [], semuaKeg = [], cache = {}, mode = 'bulanan', tglPilih = '';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -194,20 +193,6 @@ function status(c) {
   return { txt: 'Belum tercapai', cls: 'bg-rose-100 text-rose-800', bar: c === null ? 'bg-slate-300' : 'bg-rose-500' };
 }
 const semuaStat = () => { const rg = rentang(); return Object.keys(db).map(n => statPegawai(n, rg)).sort((a, b) => a.nama.localeCompare(b.nama)); };
-const HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-const jm = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
-function kolomHari(semua) {
-  if (mode === 'harian') return [];
-  const { awal, akhir } = rentang(), ada = new Set(semua.flatMap(r => Object.keys(r.harian))), out = [];
-  for (const d = keDate(awal); iso(d) <= akhir; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if ((w && w < 6) || ada.has(iso(d))) out.push(iso(d)); }
-  return out;
-}
-function selHari(r, t) {
-  const m = r.harian[t]?.m || 0;
-  if (m >= TARGET) return `<td class="x-d ok">${jm(m)}</td>`;
-  if (m > 0) return `<td class="x-d kurang">${jm(m)}</td>`;
-  return `<td class="x-d kosong">${t > iso(new Date()) ? '' : '-'}</td>`;
-}
 const buktiPersen = r => r.jml ? Math.round(r.bukti / r.jml * 100) : 0;
 
 function render() {
@@ -216,10 +201,6 @@ function render() {
   const semua = semuaStat();
   tampil = semua.filter(r => r.nama.toLowerCase().includes(q));
 
-  const kh = kolomHari(semua); nkol = 6 + kh.length;
-  $('thr').innerHTML = '<th class="p-3 w-10">No</th><th class="p-3">Pegawai</th><th class="p-3 text-center">Kegiatan</th>' +
-    kh.map(t => { const d = keDate(t); return `<th class="x-dh">${HARI[d.getDay()]}<br><span>${d.getDate()}/${d.getMonth() + 1}</span></th>`; }).join('') +
-    '<th class="p-3">Capaian jam kerja</th><th class="p-3 text-center">Bukti dukung</th><th class="p-3 text-center">Status</th>';
   $('empty').classList.toggle('hidden', ada > 0);
   $('tabelWrap').classList.toggle('hidden', ada === 0);
 
@@ -229,14 +210,14 @@ function render() {
       <td class="p-3 text-slate-400">${i + 1}</td>
       <td class="p-3 font-semibold text-indigo-900"><i class="fa-solid fa-chevron-${buka ? 'down' : 'right'} text-[10px] text-slate-400 mr-2"></i>${esc(r.nama)}</td>
       <td class="p-3 text-center">${r.jml}</td>
-      ${kh.map(t => selHari(r, t)).join('')}
+      <td class="p-3 text-center whitespace-nowrap">${r.hk} hari</td>
       <td class="p-3"><div class="flex items-center gap-2">
         <div class="flex-1 bg-slate-200 h-2.5 rounded-full overflow-hidden" style="min-width:80px"><div class="${s.bar} h-full" style="width:${Math.min(100, r.capaian || 0)}%"></div></div>
         <span class="text-right font-semibold whitespace-nowrap">${fmt(r.total)}</span></div></td>
       <td class="p-3 text-center">${buktiPersen(r)}%</td>
       <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${s.cls}">${s.txt}</span></td>
       </tr>` + (buka ? detail(r, i) : '');
-  }).join('') : `<tr><td colspan="${nkol}" class="p-6 text-center text-slate-400">Tidak ada pegawai yang cocok.</td></tr>`;
+  }).join('') : `<tr><td colspan="7" class="p-6 text-center text-slate-400">Tidak ada pegawai yang cocok.</td></tr>`;
 }
 
 function detail(r, i) {
@@ -256,7 +237,7 @@ function detail(r, i) {
   const rhk = Object.entries(r.rhk).sort((a, b) => b[1].m - a[1].m).map(([k, v]) =>
     `<tr><td style="font-weight:600;color:#312e81">${esc(k)}</td><td style="text-align:center">${v.n}</td><td style="white-space:nowrap">${fmt(v.m)}</td><td style="text-align:center">${v.out}</td></tr>`).join('');
 
-  return `<tr class="bg-slate-50"><td colspan="${nkol}" class="p-4">
+  return `<tr class="bg-slate-50"><td colspan="7" class="p-4">
     <div class="x-bar">
       <div><h4 class="font-bold text-sm text-indigo-900">${esc(r.nama)}</h4><p class="text-[11px] text-slate-500">Periode ${periode()} · ${r.jml} kegiatan · ${fmt(r.total)}</p></div>
       <button onclick="xlsPegawai(${i})" class="x-btn x-grn x-sm"><i class="fa-solid fa-file-excel"></i> Excel pegawai ini</button>
