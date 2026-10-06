@@ -9,13 +9,19 @@
 
   async function panggil(aksi, data = {}) {
     if (API_URL.startsWith('GANTI')) throw new Error('URL Apps Script belum diisi di api.js');
-    let res;
-    try {
-      res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ aksi, token: localStorage.getItem(KEY) || '', ...data }) });
-    } catch (e) { throw new Error('Tidak dapat terhubung ke server. Periksa koneksi internet.'); }
-    const j = await res.json().catch(() => null);
-    if (!j) throw new Error('Respons server tidak valid. Pastikan deploy Apps Script: akses "Anyone".');
+    const body = JSON.stringify({ aksi, token: localStorage.getItem(KEY) || '', ...data });
+    let j = null, jenis = '';
+    // Apps Script sesekali membalas halaman error sementara dari Google (bukan JSON).
+    // Semua aksi aman diulang (simpan/hapus memakai ID), jadi coba hingga 3 kali.
+    for (let i = 0; i < 3 && !j; i++) {
+      if (i) await new Promise(r => setTimeout(r, 800 * i));
+      try {
+        const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
+        const t = await res.text();
+        try { j = JSON.parse(t); } catch (e) { jenis = 'respons'; console.warn('e-Kinerja: respons bukan JSON', res.status, t.slice(0, 300)); }
+      } catch (e) { jenis = 'jaringan'; }
+    }
+    if (!j) throw new Error(jenis === 'jaringan' ? 'Tidak dapat terhubung ke server. Periksa koneksi internet.' : 'Server Google sedang sibuk atau terlambat merespons. Coba lagi sebentar.');
     if (!j.ok) {
       const e = new Error(j.error || 'Gagal'); e.kode = j.kode;
       if (j.kode === 'AUTH') { bersihkan(); if (aksi !== 'me' && aksi !== 'mulai') setTimeout(keLogin, 1500); }
