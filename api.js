@@ -72,7 +72,11 @@
     else { ov = document.createElement('div'); ov.className = 'fixed inset-0 z-[100] bg-indigo-950 flex items-center justify-center p-4'; document.body.appendChild(ov); }
 
     const muat = () => {
-      if (ov) ov.innerHTML = '<p class="text-sm text-indigo-100"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data...</p>';
+      if (ov) ov.innerHTML = `
+        <div class="flex flex-col items-center gap-4 animate-fade-up">
+          <img src="LOGO KPU.png" class="h-20 w-auto bg-white p-2.5 rounded-xl shadow-lg logo-loading" alt="Loading">
+          <p class="text-sm text-indigo-100 font-medium tracking-wide"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Sinkronisasi Data...</p>
+        </div>`;
       const b = bulan();
       panggil('mulai', { bulan: b }).then(r => {
         if (r.user.role !== perlu) { location.replace(window.ekHalaman(r.user.role)); return; }
