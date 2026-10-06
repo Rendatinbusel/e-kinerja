@@ -19,6 +19,12 @@
   .x-dt tr.x-tgl td{background:#eef2ff;font-weight:700;color:#1e1b4b}
   .x-ok{color:#047857}.x-no{color:#be123c}
   .x-wrap{overflow-x:auto}
+  .x-seg{display:inline-flex;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;background:#fff}
+  .x-seg button{font-size:12px;font-weight:600;padding:8px 16px;color:#475569;background:#fff;border:0;cursor:pointer}
+  .x-seg button+button{border-left:1px solid #cbd5e1}
+  .x-seg button.on{background:#4f46e5;color:#fff}
+  .x-in{font-size:12px;border:1px solid #cbd5e1;border-radius:8px;padding:7px 10px;background:#fff;color:#0f172a}
+  .x-in:focus{outline:2px solid #6366f1}
   .x-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:12px}
 </style>
 </head>
@@ -34,19 +40,28 @@
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-2 justify-end">
-      <label class="text-xs font-medium text-indigo-100">Periode:</label>
-      <select id="filterBulan" onchange="render()" class="bg-indigo-800 text-white text-xs rounded border border-indigo-600 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400">
-        <option value="10">Oktober 2026</option>
-        <option value="11">November 2026</option>
-        <option value="12">Desember 2026</option>
-      </select>
-      <button id="btnMuat" onclick="muatData()" class="bg-indigo-700 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs px-3.5 py-2 rounded font-semibold"><i class="fa-solid fa-rotate"></i> Muat ulang</button>
+      <button id="btnMuat" onclick="muatData(true)" class="bg-indigo-700 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs px-3.5 py-2 rounded font-semibold"><i class="fa-solid fa-rotate"></i> Muat ulang</button>
       <div class="flex items-center gap-2 text-xs"><i class="fa-solid fa-user-shield"></i><span id="namaUser" class="font-semibold">-</span><button onclick="keluar()" class="underline text-indigo-200 hover:text-white">Keluar</button></div>
     </div>
   </div>
 </header>
 
 <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+  <section class="bg-white rounded-xl shadow-sm border border-slate-200 px-5 py-3.5 flex flex-wrap items-center gap-3">
+    <div id="modeBtns" class="x-seg">
+      <button data-m="harian" onclick="setMode('harian')">Harian</button>
+      <button data-m="mingguan" onclick="setMode('mingguan')">Mingguan</button>
+      <button data-m="bulanan" onclick="setMode('bulanan')">Bulanan</button>
+    </div>
+    <input id="tglPilih" type="date" min="2026-10-01" max="2026-12-31" onchange="gantiTanggal()" class="x-in" title="Pilih tanggal (untuk mingguan: tanggal mana pun di minggu tersebut)">
+    <select id="filterBulan" onchange="ubahPeriode()" class="x-in">
+      <option value="10">Oktober 2026</option>
+        <option value="11">November 2026</option>
+        <option value="12">Desember 2026</option>
+    </select>
+    <span id="labelPeriode" class="text-xs text-slate-500"></span>
+  </section>
 
   <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
     <div class="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -95,7 +110,7 @@
 <script>
 const TARGET = 450, TAHUN = '2026';
 const NAMA_BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-let db = {}, tampil = [], terbuka = null, semuaUser = [], semuaKeg = [];
+let db = {}, tampil = [], terbuka = null, semuaUser = [], semuaKeg = [], cache = {}, mode = 'bulanan', tglPilih = '';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -105,7 +120,27 @@ const fmt = m => `${Math.floor(m/60)} jam ${String(m%60).padStart(2,'0')} mnt`;
 const tglPanjang = t => new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 const kel = items => items.reduce((o, x) => ((o[x.tanggal] ||= []).push(x), o), {});
 const durHari = a => a.reduce((s, x) => s + menit(x.jamMulai, x.jamSelesai), 0);
-const periode = () => `${NAMA_BULAN[+$('filterBulan').value - 1]} ${TAHUN}`;
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const keDate = t => new Date(t + 'T00:00:00');
+function rentang() {
+  if (mode === 'harian') return { awal: tglPilih, akhir: tglPilih };
+  if (mode === 'mingguan') {
+    const t = keDate(tglPilih), a = new Date(t);
+    a.setDate(t.getDate() - (t.getDay() + 6) % 7);
+    const b = new Date(a); b.setDate(a.getDate() + 6);
+    return { awal: iso(a), akhir: iso(b) };
+  }
+  const bl = $('filterBulan').value;
+  return { awal: `${TAHUN}-${bl}-01`, akhir: iso(new Date(+TAHUN, +bl, 0)) };
+}
+function periode() {
+  const { awal, akhir } = rentang();
+  if (mode === 'harian') return tglPanjang(awal);
+  if (mode === 'mingguan') { const f = t => keDate(t).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' }); return `${f(awal)} – ${f(akhir)} ${akhir.slice(0, 4)}`; }
+  return `${NAMA_BULAN[+$('filterBulan').value - 1]} ${TAHUN}`;
+}
+const kodePeriode = () => { const { awal, akhir } = rentang(); return mode === 'harian' ? awal : mode === 'mingguan' ? `${awal}_sd_${akhir}` : `${TAHUN}-${$('filterBulan').value}`; };
+const bulanDibutuhkan = () => { const { awal, akhir } = rentang(); return [...new Set([awal, akhir].filter(t => t.startsWith(TAHUN)).map(t => t.slice(5, 7)))]; };
 
 function gabung() {
   db = {};
@@ -113,31 +148,41 @@ function gabung() {
   semuaKeg.forEach(x => (db[x.pegawai || '(tanpa nama)'] ||= []).push(x));
   render();
 }
-async function muatData() {
+async function muatData(paksa) {
   const b = $('btnMuat'); b.disabled = true;
   try {
-    const [u, k] = await Promise.all([semuaUser.length ? semuaUser : ekDb.users(), ekDb.kegiatanBulan($('filterBulan').value)]);
-    semuaUser = u; semuaKeg = k; gabung();
+    if (paksa) cache = {};
+    const perlu = bulanDibutuhkan().filter(m => !cache[m]);
+    const [u, ...k] = await Promise.all([semuaUser.length ? semuaUser : ekDb.users(), ...perlu.map(m => ekDb.kegiatanBulan(m))]);
+    semuaUser = u; perlu.forEach((m, i) => cache[m] = k[i]);
+    semuaKeg = bulanDibutuhkan().flatMap(m => cache[m]); gabung();
   } catch (e) { alert('Gagal memuat data: ' + e.message); }
   b.disabled = false;
 }
-document.addEventListener('DOMContentLoaded', () => $('filterBulan').onchange = () => { terbuka = null; muatData(); });
-window.onload = () => mulaiAuth('admin', u => { $('namaUser').innerText = u.nama; muatData(); });
-
-function batas(bln) {
-  const now = new Date(), m = +bln - 1;
-  const akhir = new Date(+TAHUN, m + 1, 0).getDate();
-  const a = new Date(+TAHUN, m, 1), b = new Date(now.getFullYear(), now.getMonth(), 1);
-  if (a > b) return 0;
-  return a.getTime() === b.getTime() ? Math.min(akhir, now.getDate()) : akhir;
+function ubahPeriode() {
+  terbuka = null;
+  $('tglPilih').classList.toggle('hidden', mode === 'bulanan');
+  $('filterBulan').classList.toggle('hidden', mode !== 'bulanan');
+  document.querySelectorAll('#modeBtns button').forEach(x => x.classList.toggle('on', x.dataset.m === mode));
+  $('labelPeriode').textContent = periode();
+  muatData();
 }
-function hariKerja(bln) {
+function setMode(m) { mode = m; ubahPeriode(); }
+function gantiTanggal() { const v = $('tglPilih').value; if (!v) { $('tglPilih').value = tglPilih; return; } tglPilih = v; ubahPeriode(); }
+window.onload = () => mulaiAuth('admin', u => {
+  $('namaUser').innerText = u.nama;
+  const i = $('tglPilih'), h = iso(new Date()); tglPilih = h < i.min ? i.min : h > i.max ? i.max : h; i.value = tglPilih;
+  ubahPeriode();
+});
+
+function hariKerja({ awal, akhir }) {
+  const hariIni = iso(new Date()), s = akhir < hariIni ? akhir : hariIni;
   let n = 0;
-  for (let d = 1; d <= batas(bln); d++) { const w = new Date(+TAHUN, +bln - 1, d).getDay(); if (w && w < 6) n++; }
+  for (const d = keDate(awal); iso(d) <= s; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w && w < 6) n++; }
   return n;
 }
-function statPegawai(nama, bln) {
-  const it = db[nama].filter(x => x.tanggal.startsWith(`${TAHUN}-${bln}`))
+function statPegawai(nama, rg) {
+  const it = db[nama].filter(x => x.tanggal >= rg.awal && x.tanggal <= rg.akhir)
     .sort((a, b) => (a.tanggal + a.jamMulai).localeCompare(b.tanggal + b.jamMulai));
   const harian = {}, rhk = {};
   let total = 0, bukti = 0;
@@ -146,7 +191,7 @@ function statPegawai(nama, bln) {
     const h = harian[x.tanggal] ||= { n: 0, m: 0 }; h.n++; h.m += d;
     const r = rhk[x.rencanaAksi] ||= { n: 0, m: 0, out: 0 }; r.n++; r.m += d; r.out += x.realisasi;
   });
-  const hk = hariKerja(bln);
+  const hk = hariKerja(rg);
   return { nama, items: it, jml: it.length, harian, rhk, total, bukti, hk,
            capaian: hk ? Math.round(total / (hk * TARGET) * 100) : null };
 }
@@ -156,7 +201,7 @@ function status(c) {
   if (c >= 75) return { txt: 'Cukup', cls: 'bg-amber-100 text-amber-800', bar: 'bg-amber-500' };
   return { txt: 'Kurang', cls: 'bg-rose-100 text-rose-800', bar: 'bg-rose-500' };
 }
-const semuaStat = () => { const b = $('filterBulan').value; return Object.keys(db).map(n => statPegawai(n, b)).sort((a, b) => a.nama.localeCompare(b.nama)); };
+const semuaStat = () => { const rg = rentang(); return Object.keys(db).map(n => statPegawai(n, rg)).sort((a, b) => a.nama.localeCompare(b.nama)); };
 const buktiPersen = r => r.jml ? Math.round(r.bukti / r.jml * 100) : 0;
 
 function render() {
@@ -356,7 +401,7 @@ async function xlsRingkasan(lengkap) {
     const rows = semuaStat(), wb = bukuBaru(), dipakai = new Set(['ringkasan']);
     sheetRingkasan(wb, rows);
     if (lengkap) rows.forEach(p => sheetPegawai(wb, p, namaSheet(p.nama, dipakai)));
-    await unduh(wb, `eKinerja_${lengkap ? 'Lengkap' : 'Ringkasan'}_${TAHUN}-${$('filterBulan').value}.xlsx`);
+    await unduh(wb, `eKinerja_${lengkap ? 'Lengkap' : 'Ringkasan'}_${kodePeriode()}.xlsx`);
   } catch (e) { alert('Gagal membuat Excel: ' + e.message); }
   btn.disabled = false;
 }
@@ -364,7 +409,7 @@ async function xlsPegawai(i) {
   const p = tampil[i]; if (!p || !siapXlsx()) return;
   try {
     const wb = bukuBaru(); sheetPegawai(wb, p, namaSheet(p.nama, new Set()));
-    await unduh(wb, `eKinerja_${p.nama.replace(/[^\w]+/g, '_')}_${TAHUN}-${$('filterBulan').value}.xlsx`);
+    await unduh(wb, `eKinerja_${p.nama.replace(/[^\w]+/g, '_')}_${kodePeriode()}.xlsx`);
   } catch (e) { alert('Gagal membuat Excel: ' + e.message); }
 }
 </script>
