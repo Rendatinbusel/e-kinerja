@@ -163,6 +163,8 @@
                     </table>
                 </div>
 
+                <div id="statusMuat" class="hidden p-8 text-center text-xs text-slate-500"></div>
+
                 <div id="emptyState" class="hidden p-8 text-center">
                     <i class="fa-solid fa-folder-open text-3xl text-slate-300 mb-2"></i>
                     <p class="text-slate-500 text-xs">Belum ada data kegiatan untuk bulan ini.</p>
@@ -184,21 +186,38 @@
             mulaiAuth('pegawai', u => {
                 saya = u;
                 document.getElementById('namaUser').innerText = u.nama;
-                ekDb.kegiatanSaya(u.uid).then(l => { listKegiatan = l; renderData(); })
-                    .catch(e => alert('Gagal memuat data: ' + e.message));
+                muatDariServer();
             });
         };
 
-        function simpanKeServer(data) {
-            const i = listKegiatan.findIndex(x => x.id === data.id);
-            if (i > -1) listKegiatan[i] = data; else listKegiatan.push(data);
-            renderData();
-            ekDb.simpan(saya.uid, saya.nama, data).catch(e => alert('Gagal menyimpan: ' + e.message));
+        function tampilStatus(jenis, pesan) {
+            const el = document.getElementById('statusMuat');
+            el.classList.toggle('hidden', !jenis);
+            document.getElementById('emptyState').classList.add('hidden');
+            if (!jenis) return;
+            document.getElementById('tableBody').innerHTML = '';
+            if (jenis === 'memuat') {
+                el.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa data kegiatan di server...';
+            } else {
+                el.innerHTML = '<p class="text-rose-700 mb-2"></p><button type="button" onclick="muatDariServer()" class="underline text-indigo-600">Coba lagi</button>';
+                el.querySelector('p').textContent = 'Gagal memuat data: ' + pesan;
+            }
         }
-        function hapusDariServer(id) {
-            listKegiatan = listKegiatan.filter(x => x.id !== id);
-            renderData();
-            ekDb.hapus(saya.uid, id).catch(e => alert('Gagal menghapus: ' + e.message));
+
+        async function muatDariServer() {
+            tampilStatus('memuat');
+            try {
+                listKegiatan = await ekDb.kegiatanSaya();
+                tampilStatus('');
+                renderData();
+            } catch (e) { tampilStatus('gagal', e.message); }
+        }
+
+        async function hapusDariServer(id) {
+            try {
+                await ekDb.hapus(saya.uid, id);
+                await muatDariServer();
+            } catch (e) { alert('Gagal menghapus: ' + e.message); }
         }
 
         function hitungMenitDurasi(jamMulai, jamSelesai) {
@@ -354,7 +373,7 @@
             updateJamKerjaIndicator();
         }
 
-        function simpanKegiatan(e) {
+        async function simpanKegiatan(e) {
             e.preventDefault();
             const editIndex = parseInt(document.getElementById('editIndex').value);
 
@@ -369,8 +388,13 @@
                 buktiDukung: document.getElementById('buktiDukung').value
             };
 
-            simpanKeServer(data);
-            resetForm();
+            const btn = document.getElementById('btnSubmit'); btn.disabled = true;
+            try {
+                await ekDb.simpan(saya.uid, saya.nama, data);
+                resetForm();
+                await muatDariServer();
+            } catch (err) { alert('Gagal menyimpan: ' + err.message); }
+            btn.disabled = false;
         }
 
         function editKegiatan(id) {
