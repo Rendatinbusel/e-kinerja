@@ -31,9 +31,6 @@
                     </select>
                 </div>
                 <div class="flex items-center gap-2 text-xs"><i class="fa-solid fa-user"></i><span id="namaUser" class="font-semibold">-</span><button onclick="keluar()" class="underline text-indigo-200 hover:text-white">Keluar</button></div>
-                <button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3.5 py-2 rounded font-semibold flex items-center gap-1.5 transition shadow">
-                    <i class="fa-solid fa-file-excel"></i> Export CSV
-                </button>
             </div>
         </div>
     </header>
@@ -179,16 +176,56 @@
     <script>
         const TARGET_MENIT_HARIAN = 450;
 
-        let listKegiatan = [];
-        const hariIni = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+        let listKegiatan = [
+            {
+                id: 1,
+                rencanaAksi: "Melaksanakan dan menyusun laporan tindaklanjut Direktif Pimpinan yang akuntabel dan sesuai ekspektasi",
+                kegiatanHarian: "Mengikuti upacara peringatan Hari Kesaktian Pancasila lingkup KPU Provinsi Sulawesi Tenggara",
+                realisasi: 1,
+                tanggal: "2026-10-01",
+                jamMulai: "07:30",
+                jamSelesai: "08:30",
+                buktiDukung: "https://drive.google.com/file/d/19Tpm0cZfMrOTvUM7TXgCpyPPSb174nyh/view?usp=drive_link"
+            },
+            {
+                id: 2,
+                rencanaAksi: "Menyusun perencanaan program dan anggaran dalam rangka mendukung Pemilu dan Pemilihan secara akuntabel",
+                kegiatanHarian: "Menyusun matriks semula menjadi sebagai bahan melakukan revisi Pemutakhiran Hal III DIPA dan pemutakhiran data hasil POK",
+                realisasi: 1,
+                tanggal: "2026-10-01",
+                jamMulai: "09:00",
+                jamSelesai: "12:00",
+                buktiDukung: "https://drive.google.com/drive/folders/1V3xha6Det3CwFnqDkUSAKIvxCVJYO2yv?usp=drive_link"
+            },
+            {
+                id: 3,
+                rencanaAksi: "Menyusun perencanaan program dan anggaran dalam rangka mendukung Pemilu dan Pemilihan secara akuntabel",
+                kegiatanHarian: "Menyusun matriks semula menjadi sebagai bahan melakukan revisi Pemutakhiran Hal III DIPA dan pemutakhiran data hasil POK",
+                realisasi: 1,
+                tanggal: "2026-10-01",
+                jamMulai: "13:00",
+                jamSelesai: "15:00",
+                buktiDukung: "https://drive.google.com/drive/folders/1V3xha6Det3CwFnqDkUSAKIvxCVJYO2yv?usp=drive_link"
+            },
+            {
+                id: 4,
+                rencanaAksi: "Menyusun perencanaan program dan anggaran dalam rangka mendukung Pemilu dan Pemilihan secara akuntabel",
+                kegiatanHarian: "Melakukan penginputan revisi pada aplikasi SAKTI",
+                realisasi: 1,
+                tanggal: "2026-10-01",
+                jamMulai: "15:00",
+                jamSelesai: "16:00",
+                buktiDukung: "https://drive.google.com/file/d/1CvhI6BhEfdFDbnIA0orlbP9Hdk1omTNC/view?usp=drive_link"
+            }
+        ];
 
         let saya = null;
         window.onload = function() {
-            document.getElementById('tanggal').value = hariIni();
+            document.getElementById('tanggal').value = "2026-10-01";
             mulaiAuth('pegawai', u => {
                 saya = u;
                 document.getElementById('namaUser').innerText = u.nama;
-                ekDb.kegiatanSaya().then(l => { listKegiatan = l; renderData(); })
+                ekDb.kegiatanSaya(u.uid).then(l => { listKegiatan = l; renderData(); })
                     .catch(e => alert('Gagal memuat data: ' + e.message));
             });
         };
@@ -265,7 +302,7 @@
             tbody.innerHTML = '';
 
             const filtered = listKegiatan.filter(item => {
-                const itemBulan = String(new Date(item.tanggal).getMonth() + 1).padStart(2, '0');
+                const itemBulan = String(item.tanggal).slice(5, 7);
                 const matchBulan = itemBulan === bulanSelected;
                 const matchSearch = item.kegiatanHarian.toLowerCase().includes(searchQuery) || 
                                     item.rencanaAksi.toLowerCase().includes(searchQuery);
@@ -274,7 +311,6 @@
 
             if (filtered.length === 0) {
                 emptyState.classList.remove('hidden');
-                updateJamKerjaIndicator();
                 return;
             }
             emptyState.classList.add('hidden');
@@ -405,25 +441,10 @@
         function resetForm() {
             document.getElementById('ekinerjaForm').reset();
             document.getElementById('editIndex').value = "-1";
-            document.getElementById('tanggal').value = hariIni();
+            document.getElementById('tanggal').value = "2026-10-01";
             document.getElementById('btnSubmit').innerHTML = '<i class="fa-solid fa-plus mr-1"></i> Simpan Kegiatan';
             document.getElementById('previewDurasi').innerText = "00 jam 00 menit";
             updateJamKerjaIndicator();
-        }
-
-        function exportToCSV() {
-            let csv = 'Rencana Aksi,Kegiatan Harian,Realisasi,Tanggal,Jam Mulai,Jam Selesai,Durasi,Bukti Dukung\n';
-            listKegiatan.forEach(item => {
-                const durasi = formatMenitKeJam(hitungMenitDurasi(item.jamMulai, item.jamSelesai));
-                csv += `"${item.rencanaAksi}","${item.kegiatanHarian}",${item.realisasi},"${item.tanggal}","${item.jamMulai}","${item.jamSelesai}","${durasi}","${item.buktiDukung}"\n`;
-            });
-
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.setAttribute('href', url);
-            a.setAttribute('download', 'eKinerja_Harian_Rekap.csv');
-            a.click();
         }
     </script>
 </body>
