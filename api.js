@@ -60,8 +60,6 @@
     el.textContent = t; document.body.appendChild(el); setTimeout(() => el.remove(), 5000);
   };
 
-  // onReady(user, data, segar): dipanggil dua kali bila ada cache -
-  // pertama langsung dari cache (segar=false), lalu dari server (segar=true).
   window.mulaiAuth = (perlu, onReady, getBulan) => {
     if (!localStorage.getItem(KEY)) { keLogin(); return; }
     const bulan = () => (getBulan ? String(getBulan() || '') : '');
@@ -72,7 +70,13 @@
     else { ov = document.createElement('div'); ov.className = 'fixed inset-0 z-[100] bg-indigo-950 flex items-center justify-center p-4'; document.body.appendChild(ov); }
 
     const muat = () => {
-      if (ov) ov.innerHTML = '<p class="text-sm text-indigo-100"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data...</p>';
+      if (ov) ov.innerHTML = `
+        <div class="flex flex-col items-center gap-4 animate-slide-up" style="opacity: 1; animation-delay: 0s;">
+            <img src="LOGO_KPU.png" alt="Logo KPU" class="h-16 w-auto bg-white p-2 rounded-xl shadow-lg animate-pulse-soft">
+            <p class="text-sm text-indigo-100 font-medium tracking-wide">
+                <i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Menyelaraskan data...
+            </p>
+        </div>`;
       const b = bulan();
       panggil('mulai', { bulan: b }).then(r => {
         if (r.user.role !== perlu) { location.replace(window.ekHalaman(r.user.role)); return; }
