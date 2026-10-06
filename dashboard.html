@@ -33,20 +33,20 @@
 <header class="bg-indigo-900 text-white shadow-md sticky top-0 z-50">
   <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
     <div class="flex items-center gap-3">
-      <img id="logo" src="LOGO_KPU.png" onerror="this.onerror=null;this.src='LOGO KPU.png'" alt="Logo KPU" class="h-12 w-auto bg-white p-1 rounded shadow object-contain">
+      <img id="logo" src="LOGO_KPU.png" alt="Logo KPU" class="h-12 w-auto bg-white p-1 rounded shadow object-contain">
       <div>
         <h1 class="text-lg font-bold tracking-wide">Dashboard e-Kinerja Pegawai</h1>
         <p class="text-xs text-indigo-200">KPU Kabupaten Buton Selatan · Laporan (hanya lihat)</p>
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-2 justify-end">
-      <button id="btnMuat" onclick="muatData(true)" class="bg-indigo-700 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs px-3.5 py-2 rounded font-semibold active:scale-95 transition-transform"><i class="fa-solid fa-rotate"></i> Muat ulang</button>
+      <button id="btnMuat" onclick="muatData(true)" class="bg-indigo-700 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs px-3.5 py-2 rounded font-semibold"><i class="fa-solid fa-rotate"></i> Muat ulang</button>
       <div class="flex items-center gap-2 text-xs"><i class="fa-solid fa-user-shield"></i><span id="namaUser" class="font-semibold">-</span><button onclick="keluar()" class="underline text-indigo-200 hover:text-white">Keluar</button></div>
     </div>
   </div>
 </header>
 
-<main class="max-w-7xl mx-auto px-4 py-6 space-y-6 animate-fade-up">
+<main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
   <section class="bg-white rounded-xl shadow-sm border border-slate-200 px-5 py-3.5 flex flex-wrap items-center gap-3">
     <div id="modeBtns" class="x-seg">
@@ -70,7 +70,7 @@
         <p class="text-[11px] text-slate-500">Klik nama pegawai untuk melihat seluruh kegiatan yang telah diisinya pada periode terpilih</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <button id="btnX2" onclick="xlsLengkap()" class="x-btn x-grn x-sm active:scale-95 transition-transform"><i class="fa-solid fa-file-excel"></i> Excel lengkap semua pegawai</button>
+        <button id="btnX2" onclick="xlsLengkap()" class="x-btn x-grn x-sm"><i class="fa-solid fa-file-excel"></i> Excel lengkap semua pegawai</button>
         <div class="relative w-full sm:w-52">
           <input id="cari" onkeyup="render()" placeholder="Cari nama pegawai..." class="w-full text-xs border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
           <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i>
@@ -168,11 +168,20 @@ function ubahPeriode() {
 }
 function setMode(m) { mode = m; ubahPeriode(); }
 function gantiTanggal() { const v = $('tglPilih').value; if (!v) { $('tglPilih').value = tglPilih; return; } tglPilih = v; ubahPeriode(); }
-window.onload = () => mulaiAuth('admin', u => {
+let awalSiap = false;
+// onReady dipanggil 2x bila ada cache: dari cache, lalu dari server. Data bulan awal ikut dibawa (1 panggilan).
+window.onload = () => mulaiAuth('admin', (u, d) => {
   $('namaUser').innerText = u.nama;
-  const i = $('tglPilih'), h = iso(new Date()); tglPilih = h < i.min ? i.min : h > i.max ? i.max : h; i.value = tglPilih;
-  ubahPeriode();
-});
+  if (d.users && d.users.length) semuaUser = d.users;
+  if (d.bulan && d.kegiatan) cache[d.bulan] = d.kegiatan;
+  if (!awalSiap) {
+    awalSiap = true;
+    const i = $('tglPilih'), h = iso(new Date()); tglPilih = h < i.min ? i.min : h > i.max ? i.max : h; i.value = tglPilih;
+    ubahPeriode();
+  } else if (d.bulan && bulanDibutuhkan().includes(d.bulan)) {
+    semuaKeg = bulanDibutuhkan().flatMap(m => cache[m] || []); gabung();
+  }
+}, () => $('filterBulan').value);
 
 function statPegawai(nama, rg) {
   const it = db[nama].filter(x => x.tanggal >= rg.awal && x.tanggal <= rg.akhir)
@@ -206,7 +215,7 @@ function render() {
 
   $('tbody').innerHTML = tampil.length ? tampil.map((r, i) => {
     const s = status(r.capaian), buka = terbuka === r.nama;
-    return `<tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer animate-row" style="animation-delay: ${i * 0.05}s" onclick="toggle(${i})">
+    return `<tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="toggle(${i})">
       <td class="p-3 text-slate-400">${i + 1}</td>
       <td class="p-3 font-semibold text-indigo-900"><i class="fa-solid fa-chevron-${buka ? 'down' : 'right'} text-[10px] text-slate-400 mr-2"></i>${esc(r.nama)}</td>
       <td class="p-3 text-center">${r.jml}</td>
@@ -240,7 +249,7 @@ function detail(r, i) {
   return `<tr class="bg-slate-50"><td colspan="7" class="p-4">
     <div class="x-bar">
       <div><h4 class="font-bold text-sm text-indigo-900">${esc(r.nama)}</h4><p class="text-[11px] text-slate-500">Periode ${periode()} · ${r.jml} kegiatan · ${fmt(r.total)}</p></div>
-      <button onclick="xlsPegawai(${i})" class="x-btn x-grn x-sm active:scale-95 transition-transform"><i class="fa-solid fa-file-excel"></i> Excel pegawai ini</button>
+      <button onclick="xlsPegawai(${i})" class="x-btn x-grn x-sm"><i class="fa-solid fa-file-excel"></i> Excel pegawai ini</button>
     </div>
     ${rhk ? `<h5 class="font-bold text-xs mb-1.5">Ringkasan per rencana aksi (RHK)</h5>
     <div class="x-wrap" style="margin-bottom:14px"><table class="x-dt"><thead><tr><th>Rencana aksi</th><th style="text-align:center">Kegiatan</th><th>Total jam</th><th style="text-align:center">Output</th></tr></thead><tbody>${rhk}</tbody></table></div>` : ''}
