@@ -160,16 +160,14 @@ async function muatData(paksa) {
 }
 function ubahPeriode() {
   terbuka = null;
-  $('tglPilih').classList.toggle('hidden', mode === 'bulanan');
-  $('filterBulan').classList.toggle('hidden', mode !== 'bulanan');
+  $('tglPilih').classList.toggle('hidden', mode === 'bulanan');$('filterBulan').classList.toggle('hidden', mode !== 'bulanan');
   document.querySelectorAll('#modeBtns button').forEach(x => x.classList.toggle('on', x.dataset.m === mode));
   $('labelPeriode').textContent = periode();
   muatData();
 }
 function setMode(m) { mode = m; ubahPeriode(); }
-function gantiTanggal() { const v = $('tglPilih').value; if (!v) { $('tglPilih').value = tglPilih; return; } tglPilih = v; ubahPeriode(); }
+function gantiTanggal() { const v = $('tglPilih').value; if (!v) {$('tglPilih').value = tglPilih; return; } tglPilih = v; ubahPeriode(); }
 let awalSiap = false;
-// onReady dipanggil 2x bila ada cache: dari cache, lalu dari server. Data bulan awal ikut dibawa (1 panggilan).
 window.onload = () => mulaiAuth('admin', (u, d) => {
   $('namaUser').innerText = u.nama;
   if (d.users && d.users.length) semuaUser = d.users;
@@ -210,12 +208,11 @@ function render() {
   const semua = semuaStat();
   tampil = semua.filter(r => r.nama.toLowerCase().includes(q));
 
-  $('empty').classList.toggle('hidden', ada > 0);
-  $('tabelWrap').classList.toggle('hidden', ada === 0);
+  $('empty').classList.toggle('hidden', ada > 0);$('tabelWrap').classList.toggle('hidden', ada === 0);
 
   $('tbody').innerHTML = tampil.length ? tampil.map((r, i) => {
     const s = status(r.capaian), buka = terbuka === r.nama;
-    return `<tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="toggle(${i})">
+    return `<tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer animate-slide-up" style="animation-delay:${i * 0.04}s" onclick="toggle(${i})">
       <td class="p-3 text-slate-400">${i + 1}</td>
       <td class="p-3 font-semibold text-indigo-900"><i class="fa-solid fa-chevron-${buka ? 'down' : 'right'} text-[10px] text-slate-400 mr-2"></i>${esc(r.nama)}</td>
       <td class="p-3 text-center">${r.jml}</td>
