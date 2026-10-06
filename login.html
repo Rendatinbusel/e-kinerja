@@ -76,7 +76,9 @@ $('form').onsubmit = async ev => {
   }
 };
 
-ekSesi().then(u => { if (u) location.replace(ekHalaman(u.role)); }).catch(() => {});
+const _r = ekAdaSesi();
+if (_r) location.replace(ekHalaman(_r));
+else { ekPanaskan(); ekSesi().then(u => { if (u) location.replace(ekHalaman(u.role)); }).catch(() => {}); }
 $('user').focus();
 </script>
 </body>
