@@ -32,9 +32,9 @@
 </head>
 <body class="font-sans antialiased min-h-screen flex items-center justify-center p-4">
 <main class="lg-wrap">
-  <div class="lg-card">
+  <div class="lg-card animate-fade-up">
     <div class="lg-head">
-      <img class="lg-logo" src="LOGO_KPU.png" onerror="this.onerror=function(){this.style.display='none'};this.src='LOGO KPU.png'" alt="Logo KPU">
+      <img class="lg-logo" src="LOGO_KPU.png" onerror="this.onerror=null;this.src='LOGO KPU.png'" alt="Logo KPU">
       <h1 class="lg-title">e-Kinerja Pegawai</h1>
       <p class="lg-sub">KPU Kabupaten Buton Selatan</p>
     </div>
@@ -47,7 +47,7 @@
         <input id="pass" class="lg-in lg-pass" type="password" autocomplete="current-password" placeholder="Masukkan password">
         <button id="eye" class="lg-eye" type="button" aria-label="Tampilkan password"><i class="fa-solid fa-eye"></i></button>
       </div>
-      <button id="btn" class="lg-btn" type="submit">Masuk</button>
+      <button id="btn" class="lg-btn active:scale-95 transition-transform" type="submit">Masuk</button>
     </form>
     <p class="lg-note">Lupa password atau belum punya akun? Hubungi admin.</p>
   </div>
@@ -76,9 +76,7 @@ $('form').onsubmit = async ev => {
   }
 };
 
-const _r = ekAdaSesi();
-if (_r) location.replace(ekHalaman(_r));
-else { ekPanaskan(); ekSesi().then(u => { if (u) location.replace(ekHalaman(u.role)); }).catch(() => {}); }
+ekSesi().then(u => { if (u) location.replace(ekHalaman(u.role)); }).catch(() => {});
 $('user').focus();
 </script>
 </body>
