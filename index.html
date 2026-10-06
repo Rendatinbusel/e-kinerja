@@ -14,7 +14,7 @@
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
             
             <div class="flex items-center gap-3">
-                <img src="LOGO KPU.png" alt="Logo KPU" class="h-12 w-auto bg-white p-1 rounded shadow object-contain">
+                <img src="LOGO_KPU.png" alt="Logo KPU" class="h-12 w-auto bg-white p-1 rounded shadow object-contain">
                 <div>
                     <h1 class="text-lg font-bold tracking-wide">INSTRUMEN E-KINERJA HARIAN</h1>
                     <p class="text-xs text-indigo-200">KPU Kabupaten Buton Selatan</p>
@@ -31,6 +31,9 @@
                     </select>
                 </div>
                 <div class="flex items-center gap-2 text-xs"><i class="fa-solid fa-user"></i><span id="namaUser" class="font-semibold">-</span><button onclick="keluar()" class="underline text-indigo-200 hover:text-white">Keluar</button></div>
+                <button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3.5 py-2 rounded font-semibold flex items-center gap-1.5 transition shadow">
+                    <i class="fa-solid fa-file-excel"></i> Export CSV
+                </button>
             </div>
         </div>
     </header>
@@ -163,8 +166,6 @@
                     </table>
                 </div>
 
-                <div id="statusMuat" class="hidden p-8 text-center text-xs text-slate-500"></div>
-
                 <div id="emptyState" class="hidden p-8 text-center">
                     <i class="fa-solid fa-folder-open text-3xl text-slate-300 mb-2"></i>
                     <p class="text-slate-500 text-xs">Belum ada data kegiatan untuk bulan ini.</p>
@@ -178,46 +179,73 @@
     <script>
         const TARGET_MENIT_HARIAN = 450;
 
-        let listKegiatan = [];
+        let listKegiatan = [
+            {
+                id: 1,
+                rencanaAksi: "Melaksanakan dan menyusun laporan tindaklanjut Direktif Pimpinan yang akuntabel dan sesuai ekspektasi",
+                kegiatanHarian: "Mengikuti upacara peringatan Hari Kesaktian Pancasila lingkup KPU Provinsi Sulawesi Tenggara",
+                realisasi: 1,
+                tanggal: "2026-10-01",
+                jamMulai: "07:30",
+                jamSelesai: "08:30",
+                buktiDukung: "https://drive.google.com/file/d/19Tpm0cZfMrOTvUM7TXgCpyPPSb174nyh/view?usp=drive_link"
+            },
+            {
+                id: 2,
+                rencanaAksi: "Menyusun perencanaan program dan anggaran dalam rangka mendukung Pemilu dan Pemilihan secara akuntabel",
+                kegiatanHarian: "Menyusun matriks semula menjadi sebagai bahan melakukan revisi Pemutakhiran Hal III DIPA dan pemutakhiran data hasil POK",
+                realisasi: 1,
+                tanggal: "2026-10-01",
+                jamMulai: "09:00",
+                jamSelesai: "12:00",
+                buktiDukung: "https://drive.google.com/drive/folders/1V3xha6Det3CwFnqDkUSAKIvxCVJYO2yv?usp=drive_link"
+            },
+            {
+                id: 3,
+                rencanaAksi: "Menyusun perencanaan program dan anggaran dalam rangka mendukung Pemilu dan Pemilihan secara akuntabel",
+                kegiatanHarian: "Menyusun matriks semula menjadi sebagai bahan melakukan revisi Pemutakhiran Hal III DIPA dan pemutakhiran data hasil POK",
+                realisasi: 1,
+                tanggal: "2026-10-01",
+                jamMulai: "13:00",
+                jamSelesai: "15:00",
+                buktiDukung: "https://drive.google.com/drive/folders/1V3xha6Det3CwFnqDkUSAKIvxCVJYO2yv?usp=drive_link"
+            },
+            {
+                id: 4,
+                rencanaAksi: "Menyusun perencanaan program dan anggaran dalam rangka mendukung Pemilu dan Pemilihan secara akuntabel",
+                kegiatanHarian: "Melakukan penginputan revisi pada aplikasi SAKTI",
+                realisasi: 1,
+                tanggal: "2026-10-01",
+                jamMulai: "15:00",
+                jamSelesai: "16:00",
+                buktiDukung: "https://drive.google.com/file/d/1CvhI6BhEfdFDbnIA0orlbP9Hdk1omTNC/view?usp=drive_link"
+            }
+        ];
 
-        let saya = null;
+        let saya = null, ubahLokal = 0;
         window.onload = function() {
             document.getElementById('tanggal').value = "2026-10-01";
-            mulaiAuth('pegawai', u => {
+            mulaiAuth('pegawai', (u, d, segar) => {
                 saya = u;
                 document.getElementById('namaUser').innerText = u.nama;
-                muatDariServer();
+                if (segar && ubahLokal > 0) return; // pengguna sudah mengubah data selagi memuat
+                listKegiatan = d.kegiatan || [];
+                renderData();
             });
         };
 
-        function tampilStatus(jenis, pesan) {
-            const el = document.getElementById('statusMuat');
-            el.classList.toggle('hidden', !jenis);
-            document.getElementById('emptyState').classList.add('hidden');
-            if (!jenis) return;
-            document.getElementById('tableBody').innerHTML = '';
-            if (jenis === 'memuat') {
-                el.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa data kegiatan di server...';
-            } else {
-                el.innerHTML = '<p class="text-rose-700 mb-2"></p><button type="button" onclick="muatDariServer()" class="underline text-indigo-600">Coba lagi</button>';
-                el.querySelector('p').textContent = 'Gagal memuat data: ' + pesan;
-            }
+        function simpanKeServer(data) {
+            const i = listKegiatan.findIndex(x => x.id === data.id);
+            if (i > -1) listKegiatan[i] = data; else listKegiatan.push(data);
+            ubahLokal++; ekSimpanCache(listKegiatan);
+            renderData();
+            ekDb.simpan(saya.uid, saya.nama, data).catch(e => alert('Gagal menyimpan: ' + e.message));
         }
-
-        async function muatDariServer() {
-            tampilStatus('memuat');
-            try {
-                listKegiatan = await ekDb.kegiatanSaya();
-                tampilStatus('');
-                renderData();
-            } catch (e) { tampilStatus('gagal', e.message); }
-        }
-
-        async function hapusDariServer(id) {
-            try {
-                await ekDb.hapus(saya.uid, id);
-                await muatDariServer();
-            } catch (e) { alert('Gagal menghapus: ' + e.message); }
+        function hapusDariServer(id) {
+            listKegiatan = listKegiatan.filter(x => x.id !== id);
+            ubahLokal++; ekSimpanCache(listKegiatan);
+            renderData();
+            ekDb.hapus(saya.uid, id).catch(e => alert('Gagal menghapus: ' + e.message));
         }
 
         function hitungMenitDurasi(jamMulai, jamSelesai) {
@@ -280,7 +308,7 @@
             tbody.innerHTML = '';
 
             const filtered = listKegiatan.filter(item => {
-                const itemBulan = String(item.tanggal).slice(5, 7);
+                const itemBulan = String(new Date(item.tanggal).getMonth() + 1).padStart(2, '0');
                 const matchBulan = itemBulan === bulanSelected;
                 const matchSearch = item.kegiatanHarian.toLowerCase().includes(searchQuery) || 
                                     item.rencanaAksi.toLowerCase().includes(searchQuery);
@@ -373,7 +401,7 @@
             updateJamKerjaIndicator();
         }
 
-        async function simpanKegiatan(e) {
+        function simpanKegiatan(e) {
             e.preventDefault();
             const editIndex = parseInt(document.getElementById('editIndex').value);
 
@@ -388,13 +416,8 @@
                 buktiDukung: document.getElementById('buktiDukung').value
             };
 
-            const btn = document.getElementById('btnSubmit'); btn.disabled = true;
-            try {
-                await ekDb.simpan(saya.uid, saya.nama, data);
-                resetForm();
-                await muatDariServer();
-            } catch (err) { alert('Gagal menyimpan: ' + err.message); }
-            btn.disabled = false;
+            simpanKeServer(data);
+            resetForm();
         }
 
         function editKegiatan(id) {
@@ -428,6 +451,21 @@
             document.getElementById('btnSubmit').innerHTML = '<i class="fa-solid fa-plus mr-1"></i> Simpan Kegiatan';
             document.getElementById('previewDurasi').innerText = "00 jam 00 menit";
             updateJamKerjaIndicator();
+        }
+
+        function exportToCSV() {
+            let csv = 'Rencana Aksi,Kegiatan Harian,Realisasi,Tanggal,Jam Mulai,Jam Selesai,Durasi,Bukti Dukung\n';
+            listKegiatan.forEach(item => {
+                const durasi = formatMenitKeJam(hitungMenitDurasi(item.jamMulai, item.jamSelesai));
+                csv += `"${item.rencanaAksi}","${item.kegiatanHarian}",${item.realisasi},"${item.tanggal}","${item.jamMulai}","${item.jamSelesai}","${durasi}","${item.buktiDukung}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'eKinerja_Harian_Rekap.csv');
+            a.click();
         }
     </script>
 </body>
